@@ -33,14 +33,17 @@ const SidebarItem = ({ icon: Icon, label, active, collapsed, onClick }: SidebarI
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center w-full gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg whitespace-nowrap overflow-hidden",
+        "flex items-center w-full gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg whitespace-nowrap overflow-hidden relative group",
         active 
-          ? "bg-primary text-primary-foreground" 
+          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" 
           : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         collapsed && "px-3 justify-center"
       )}
     >
-      <Icon className="w-5 h-5 flex-shrink-0" />
+      {active && collapsed && (
+        <div className="absolute left-0 w-1 h-6 bg-primary-foreground rounded-r-full" />
+      )}
+      <Icon className={cn("w-5 h-5 flex-shrink-0 transition-transform duration-200", active && collapsed && "scale-110")} />
       {!collapsed && <span>{label}</span>}
       {active && !collapsed && <ChevronRight className="w-4 h-4 ml-auto" />}
     </button>
