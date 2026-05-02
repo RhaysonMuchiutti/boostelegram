@@ -82,8 +82,11 @@ export const TelegramConnectView = () => {
     };
   }, []);
 
-  const startPollingStatus = (connectionId: string) => {
-    // We now use Realtime instead of polling for a better experience
+  const startRealtimeStatus = (connectionId: string) => {
+    if (realtimeChannelRef.current) {
+      supabase.removeChannel(realtimeChannelRef.current);
+    }
+    
     console.log("Iniciando monitoramento em tempo real da conexão:", connectionId);
     
     const channel = supabase
@@ -106,20 +109,20 @@ export const TelegramConnectView = () => {
             setStep("connected");
             
             toast.success(`Conectado como ${username}!`, {
-              description: "Sua conta do Telegram foi vinculada com sucesso via Realtime.",
+              description: "Sua conta do Telegram foi vinculada com sucesso em tempo real.",
               duration: 6000,
             });
             
-            supabase.removeChannel(channel);
+            if (realtimeChannelRef.current) {
+              supabase.removeChannel(realtimeChannelRef.current);
+              realtimeChannelRef.current = null;
+            }
           }
         }
       )
       .subscribe();
 
-    // Cleanup channel on unmount
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    realtimeChannelRef.current = channel;
   };
 
   const handleStartConnection = async () => {
