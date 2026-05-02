@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-const QRCode = lazy(() => import("react-qr-code"));
+// Importar QRCode de forma estática para remover o lazy problemático
+import QRCode from "react-qr-code";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen } from "lucide-react";
-import { generateQrCode } from "@/lib/telegram";
+// Importar dinamicamente a lógica do Telegram apenas no momento do clique
+// Isso evita que o erro de carregamento aconteça na inicialização do app
 import { toast } from "sonner";
 import { Buffer } from "buffer";
 
@@ -31,13 +33,15 @@ export const TelegramConnectView = () => {
     isConnecting.current = true;
 
     try {
+      // Importar dinamicamente a lógica do Telegram apenas aqui
+      const { generateQrCode } = await import("@/lib/telegram");
+
       await generateQrCode(
         { 
           apiId: parseInt(apiCredentials.appId), 
           apiHash: apiCredentials.apiHash 
         },
         (qr) => {
-          // O Telegram retorna o token em Buffer, precisamos converter para a URL que o app entende
           const base64Token = Buffer.from(qr.token).toString("base64url");
           const url = `tg://login?token=${base64Token}`;
           setQrString(url);
@@ -46,7 +50,6 @@ export const TelegramConnectView = () => {
           setTimeLeft(60);
         },
         (session) => {
-          console.log("Conectado com sucesso!");
           localStorage.setItem("tg_session", session);
           setStep("connected");
           isConnecting.current = false;
@@ -61,10 +64,11 @@ export const TelegramConnectView = () => {
         }
       );
     } catch (err) {
+      console.error("Dynamic import error:", err);
       setIsLoading(false);
       setStep("credentials");
       isConnecting.current = false;
-      toast.error("Erro inesperado ao iniciar conexão.");
+      toast.error("Erro ao carregar módulo do Telegram.");
     }
   };
 
@@ -176,14 +180,12 @@ export const TelegramConnectView = () => {
             <div className="flex flex-col items-center py-6 space-y-8 animate-in zoom-in-95">
               <div className="relative p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-100">
                 <div className="p-2">
-                  <Suspense fallback={<div className="w-[220px] h-[220px] bg-slate-100 animate-pulse rounded-lg" />}>
-                    <QRCode 
-                      value={qrString} 
-                      size={220}
-                      level="M"
-                      style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                    />
-                  </Suspense>
+                  <QRCode 
+                    value={qrString} 
+                    size={220}
+                    level="M"
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                  />
                 </div>
                 <div className="absolute -top-3 -right-3 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white shadow-lg">
                   <PanelLeftOpen className="w-6 h-6" />
