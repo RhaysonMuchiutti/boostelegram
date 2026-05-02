@@ -83,7 +83,6 @@ export const TelegramConnectView = () => {
   const verifyConnectionStatus = async (connectionId: string) => {
     setIsVerifyingExtra(true);
     try {
-      // Pequeno delay estratégico para garantir propagação no banco
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       const { data, error } = await supabase
@@ -99,7 +98,7 @@ export const TelegramConnectView = () => {
         setTelegramUser(username);
         setStep("connected");
         
-        toast.success(`Conexão confirmada!`, {
+        toast.success("Conexão confirmada!", {
           description: `Bem-vindo, ${username}. Sua conta foi vinculada com sucesso.`,
           duration: 5000,
         });
@@ -110,7 +109,7 @@ export const TelegramConnectView = () => {
         }
         return true;
       } else {
-        toast.error("Aguardando confirmação...", {
+        toast.info("Aguardando confirmação...", {
           description: "Certifique-se de que autorizou o dispositivo no seu celular."
         });
         return false;
@@ -211,15 +210,15 @@ export const TelegramConnectView = () => {
 
       <Card className="border-2 shadow-xl overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="pt-6 relative">
-          {/* Overlay de Verificação Extra */}
           {isVerifyingExtra && (
-            <div className=\"absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-300\">
-              <div className=\"relative\">
-                <div className=\"w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin\" />
-                <ShieldCheck className=\"w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary\" />
+            <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-300">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <ShieldCheck className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary" />
               </div>
-              <div className=\"text-center space-y-1\">
-                <p className=\"font-bold text-xl text-slate-900 dark:text-white\">Confirmando Conexão</p>\n                <p className=\"text-sm text-muted-foreground\">Sincronizando sua sessão no banco de dados...</p>
+              <div className="text-center space-y-1">
+                <p className="font-bold text-xl text-slate-900 dark:text-white">Confirmando Conexão</p>
+                <p className="text-sm text-muted-foreground">Sincronizando sua sessão com o banco de dados...</p>
               </div>
             </div>
           )}
@@ -342,7 +341,7 @@ export const TelegramConnectView = () => {
                 <div className="space-y-2">
                   <p className="font-bold text-2xl">Escaneie o Código</p>
                   <p className="text-sm text-muted-foreground">
-                    <b>Configurações</b> {">"} <b>Dispositivos</b> {">"} <b>Conectar Dispositivo</b>
+                    No Telegram: <b>Configurações</b> {" > "} <b>Dispositivos</b> {" > "} <b>Conectar</b>
                   </p>
                 </div>
                 
@@ -359,8 +358,8 @@ export const TelegramConnectView = () => {
                     onClick={() => currentConnId && verifyConnectionStatus(currentConnId)}
                     disabled={isVerifyingExtra}
                   >
-                    <RefreshCw className={`w-3 h-3 mr-2 ${isVerifyingExtra ? \"animate-spin\" : \"\"}`} />
-                    {isVerifyingExtra ? \"Confirmando...\" : \"Já escaneou? Clique para confirmar\"}
+                    <RefreshCw className={`w-3 h-3 mr-2 ${isVerifyingExtra ? "animate-spin" : ""}`} />
+                    {isVerifyingExtra ? "Confirmando..." : "Já escaneou? Clique para confirmar"}
                   </Button>
                 </div>
 
