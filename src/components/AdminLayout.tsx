@@ -75,24 +75,22 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Mobile Menu Overlay */}
-      {!isSidebarOpen && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="fixed z-50 top-4 left-4 lg:hidden"
-          onClick={() => setIsSidebarOpen(true)}
-        >
-          <Menu className="w-6 h-6" />
-        </Button>
-      )}
+      {/* Mobile Menu Trigger */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed z-50 top-3 left-4 md:hidden bg-white shadow-sm border-slate-200"
+        onClick={() => setIsSidebarOpen(true)}
+      >
+        <Menu className="w-6 h-6 text-primary" />
+      </Button>
 
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 bg-white border-r border-border dark:bg-slate-900 transition-all duration-300 lg:translate-x-0 lg:static",
-          isCollapsed ? "w-20" : "w-64",
-          !isSidebarOpen && "-translate-x-full"
+          "bg-white border-r border-border dark:bg-slate-900 transition-all duration-300 shrink-0 h-screen sticky top-0 z-40",
+          "hidden md:block", // Always visible and pushing on desktop/tablet
+          isCollapsed ? "w-20" : "w-64"
         )}
       >
         <div className="flex flex-col h-full px-4 py-6">
@@ -181,6 +179,43 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
           </div>
         </div>
       </aside>
+
+      {/* Mobile Drawer (Overlay for small screens) */}
+      <div 
+        className={cn(
+          "fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm md:hidden transition-opacity duration-300",
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 md:hidden transition-transform duration-300 border-r border-border",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* We can reuse the sidebar content here or just copy it, for simplicity I'll keep it separate or use a component */}
+        <div className="flex flex-col h-full px-4 py-6">
+          <div className="flex items-center gap-3 px-2 mb-8">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
+              <Target className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              GrupoBoost
+            </h1>
+          </div>
+          <nav className="flex-1 space-y-1">
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }} />
+            <SidebarItem icon={Target} label="Campanhas" active={activeTab === "campaigns"} onClick={() => { setActiveTab("campaigns"); setIsSidebarOpen(false); }} />
+            <SidebarItem icon={Users} label="Leads" active={activeTab === "leads"} onClick={() => { setActiveTab("leads"); setIsSidebarOpen(false); }} />
+            <SidebarItem icon={MessageSquare} label="Mensagens" active={activeTab === "messages"} onClick={() => { setActiveTab("messages"); setIsSidebarOpen(false); }} />
+            <SidebarItem icon={Settings} label="Configurações" active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} />
+          </nav>
+          <div className="pt-6 mt-6 border-t border-border">
+            <SidebarItem icon={LogOut} label="Sair" />
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
