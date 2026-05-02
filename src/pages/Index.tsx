@@ -15,12 +15,14 @@ const Index = () => {
 
   return (
     <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {activeTab === "dashboard" && <DashboardView />}
-      {activeTab === "campaigns" && <CampaignForm />}
-      {activeTab === "leads" && <TelegramConnectView />}
-      {activeTab === "messages" && <TelegramInterface />}
-      {activeTab === "automation" && <AutomationRulesView />}
-      {activeTab === "settings" && <PrivacySettingsView />}
+      <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+        {activeTab === "dashboard" && <DashboardView />}
+        {activeTab === "campaigns" && <CampaignForm />}
+        {activeTab === "leads" && <TelegramConnectView />}
+        {activeTab === "messages" && <TelegramInterface />}
+        {activeTab === "automation" && <AutomationRulesView />}
+        {activeTab === "settings" && <PrivacySettingsView />}
+      </Suspense>
       
       {/* Bot Flow visualization stays available if needed via developer tools or a specific hidden route */}
       {activeTab === "bot-flow" && <BotFlowDesign />}
