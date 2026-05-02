@@ -10,7 +10,8 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
-  Zap
+  Zap,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
