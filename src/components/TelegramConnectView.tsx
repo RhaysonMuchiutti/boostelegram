@@ -156,9 +156,12 @@ export const TelegramConnectView = () => {
     <div className="max-w-2xl mx-auto space-y-6 py-8 px-4">
       <div className="text-center space-y-2 mb-8">
         <h2 className="text-3xl font-bold tracking-tight">Conectar Telegram</h2>
-        <p className="text-muted-foreground text-lg">
-          Sincronize sua conta via QR Code (Session API)
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <div className={`w-2 h-2 rounded-full ${step === "connected" ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
+          <span className={`text-sm font-medium ${step === "connected" ? "text-emerald-600" : "text-muted-foreground"}`}>
+            {step === "connected" ? "Status: Conectado" : "Status: Desconectado"}
+          </span>
+        </div>
       </div>
 
       <Card className="border-2 shadow-xl overflow-hidden bg-white dark:bg-slate-900">
@@ -306,8 +309,8 @@ export const TelegramConnectView = () => {
                 <h3 className="text-3xl font-bold text-slate-900">Conta Conectada!</h3>
                 <p className="text-muted-foreground text-lg">Seu Telegram agora está integrado ao servidor do GrupoBoost.</p>
               </div>
-              <Button className="h-12 px-8 rounded-full" onClick={() => window.location.href = "/"}>
-                Ir para o Painel de Controle
+              <Button className="h-12 px-8 rounded-full" onClick={() => setStep("intro")}>
+                Desconectar e Configurar Novo
               </Button>
             </div>
           )}
