@@ -122,7 +122,7 @@ serve(async (req) => {
             if (!me) throw new Error("Falha ao obter dados do perfil após login");
             
             const userData = me as Api.User;
-            const displayName = userData.username || userData.firstName || "Telegram User";
+            const displayName = userData.username || userData.firstName || "Usuário Telegram";
             console.log(`[Background] Logged in as: ${displayName}`);
 
             const sessionString = (client.session as any).save();
@@ -132,6 +132,7 @@ serve(async (req) => {
               .update({ 
                 status: 'connected', 
                 session_string: sessionString,
+                telegram_username: displayName,
                 updated_at: new Date().toISOString()
               })
               .eq('user_id', user.id);
