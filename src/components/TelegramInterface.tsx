@@ -16,7 +16,10 @@ import {
   Zap,
   QrCode,
   MessageSquare,
-  List
+  List,
+  Download,
+  FileJson,
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
