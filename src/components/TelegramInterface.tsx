@@ -263,7 +263,21 @@ export const TelegramInterface = () => {
               </div>
             </header>
 
-            <div className="flex-1 p-6 overflow-y-auto space-y-6 flex flex-col-reverse">
+            <div 
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex-1 p-6 overflow-y-auto space-y-6 flex flex-col"
+            >
+              {hasMore && (
+                <div className="flex justify-center py-2">
+                  {isLoadingMore ? (
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-xs text-slate-400">Arraste para cima para carregar mais</span>
+                  )}
+                </div>
+              )}
+              
               <div className="flex flex-col gap-6">
                 {messages.map((msg) => (
                   <div key={msg.id} className={cn("flex gap-3 max-w-[80%]", msg.fromMe ? "ml-auto flex-row-reverse" : "")}>
@@ -289,6 +303,7 @@ export const TelegramInterface = () => {
                   Nenhuma mensagem recente
                 </div>
               )}
+              <div id="scroll-anchor" />
             </div>
 
             <footer className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
