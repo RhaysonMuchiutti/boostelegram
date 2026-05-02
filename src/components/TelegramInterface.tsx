@@ -82,6 +82,7 @@ export const TelegramInterface = () => {
   const [isManaging, setIsManaging] = useState(false);
   const [replaceList, setReplaceList] = useState("");
   const [myGroups, setMyGroups] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"chats" | "my-groups">("chats");
 
   const listRef = useRef<any>(null);
   const rowHeights = useRef<{[key: number]: number}>({});
@@ -508,6 +509,26 @@ export const TelegramInterface = () => {
               </Button>
             )}
           </div>
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+            <button 
+              onClick={() => setActiveTab("chats")}
+              className={cn(
+                "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
+                activeTab === "chats" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Conversas
+            </button>
+            <button 
+              onClick={() => setActiveTab("my-groups")}
+              className={cn(
+                "flex-1 py-1.5 text-xs font-bold rounded-md transition-all",
+                activeTab === "my-groups" ? "bg-white dark:bg-slate-700 shadow-sm text-primary" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Meus Grupos
+            </button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input className="pl-10 bg-slate-50 dark:bg-slate-800 border-none h-10" placeholder="Pesquisar..." />
@@ -515,37 +536,101 @@ export const TelegramInterface = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {chats.map((chat) => (
-            <div 
-              key={chat.id} 
-              onClick={() => setSelectedChat(chat.id)}
-              className={cn(
-                "flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800",
-                selectedChat === chat.id && "bg-blue-50/50 dark:bg-blue-900/20"
-              )}
-            >
-              <div className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shrink-0",
-                chat.isGroup ? "bg-blue-500" : "bg-emerald-500"
-              )}>
-                {chat.isGroup ? <Users className="w-6 h-6" /> : <User className="w-6 h-6" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-baseline mb-1">
-                  <h4 className="font-semibold text-sm truncate">{chat.name}</h4>
-                  <span className="text-[10px] text-slate-400">{chat.time ? new Date(chat.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}</span>
+          {activeTab === "chats" ? (
+            chats.map((chat) => (
+              <div 
+                key={chat.id} 
+                onClick={() => setSelectedChat(chat.id)}
+                className={cn(
+                  "flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800",
+                  selectedChat === chat.id && "bg-blue-50/50 dark:bg-blue-900/20"
+                )}
+              >
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shrink-0",
+                  chat.isGroup ? "bg-blue-500" : "bg-emerald-500"
+                )}>
+                  {chat.isGroup ? <Users className="w-6 h-6" /> : <User className="w-6 h-6" />}
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-slate-500 truncate">{chat.lastMsg}</p>
-                  {chat.unread > 0 && (
-                    <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                      {chat.unread}
-                    </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <h4 className="font-semibold text-sm truncate">{chat.name}</h4>
+                    <span className="text-[10px] text-slate-400">{chat.time ? new Date(chat.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-slate-500 truncate">{chat.lastMsg}</p>
+                    {chat.unread > 0 && (
+                      <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                        {chat.unread}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-2 space-y-1">
+              {myGroups.map((group) => (
+                <div 
+                  key={group.id} 
+                  onClick={() => {
+                    setSelectedChat(group.id);
+                    setActiveTab("chats");
+                  }}
+                  className={cn(
+                    "flex flex-col gap-1 p-3 cursor-pointer transition-colors rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800",
+                    selectedChat === group.id && "bg-blue-50/50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-900/30"
                   )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0",
+                      group.isChannel ? "bg-amber-500" : "bg-blue-600"
+                    )}>
+                      {group.isChannel ? <Zap className="w-5 h-5" /> : <Users className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-xs truncate">{group.title}</h4>
+                      <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {group.participantsCount} membros
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {group.isCreator && (
+                        <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 text-[8px] font-bold px-1.5 py-0.5 rounded" title="Dono">
+                          DONO
+                        </div>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-slate-400 hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedChat(group.id);
+                          setIsManageOpen(true);
+                          fetchParticipants(group.id);
+                        }}
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
+              {myGroups.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                    <Shield className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium italic">
+                    Nenhum grupo ou canal onde você é administrador foi encontrado.
+                  </p>
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
