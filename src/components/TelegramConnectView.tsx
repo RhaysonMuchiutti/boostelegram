@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
+import QRCode from "react-qr-code";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QrCode, ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle } from "lucide-react";
 
 export const TelegramConnectView = () => {
-  const [step, setStep] = useState<"intro" | "qr" | "loading" | "connected">("intro");
+  const [step, setStep] = useState<"intro" | "credentials" | "qr" | "loading" | "connected">("intro");
   const [timeLeft, setTimeLeft] = useState(60);
+  const [qrString, setQrString] = useState("tg://login?token=EM_DESENVOLVIMENTO");
+  const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
