@@ -19,7 +19,8 @@ import {
   List,
   Download,
   FileJson,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Table as TableIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +33,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as ReactWindow from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
+import * as XLSX from "xlsx";
+
 const ListVirtual = (ReactWindow as any).VariableSizeList;
 const AutoSizerComponent = AutoSizer as any;
 
