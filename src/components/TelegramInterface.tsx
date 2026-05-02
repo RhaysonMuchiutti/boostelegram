@@ -43,6 +43,14 @@ const ListVirtual = (ReactWindow as any).VariableSizeList;
 const AutoSizerComponent = AutoSizer as any;
 
 export const TelegramInterface = () => {
+  useEffect(() => {
+    // Add overflow hidden to body to prevent double scrollbars
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
   const [isLoading, setIsLoading] = useState(true);
@@ -390,24 +398,25 @@ export const TelegramInterface = () => {
 
     useEffect(() => {
       if (rowRef.current) {
-        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 24);
+        // Trigger height recalculation
+        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 16);
       }
-    }, [msg.text]);
+    }, [msg.text, style.width]); // Re-run if width changes
 
     return (
-      <div style={style}>
-        <div ref={rowRef} className={cn("flex gap-3 max-w-[80%] mx-6 my-3", msg.fromMe ? "ml-auto flex-row-reverse" : "")}>
+      <div style={{ ...style, width: '100%' }}>
+        <div ref={rowRef} className={cn("flex gap-2 max-w-[85%] sm:max-w-[80%] mx-3 sm:mx-6 my-1.5", msg.fromMe ? "ml-auto flex-row-reverse" : "")}>
           <div className={cn("w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] text-white font-bold", msg.fromMe ? "bg-primary" : "bg-slate-200 dark:bg-slate-800")}>
             {msg.fromMe ? "EU" : <User className="w-4 h-4" />}
           </div>
           <div className={cn(
-            "p-3 rounded-2xl shadow-sm border",
+            "p-2.5 rounded-2xl shadow-sm border",
             msg.fromMe 
               ? "bg-primary text-white border-transparent rounded-tr-none" 
               : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 rounded-tl-none"
           )}>
-            <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
-            <span className={cn("text-[10px] block text-right mt-1", msg.fromMe ? "text-white/70" : "text-slate-400")}>
+            <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
+            <span className={cn("text-[9px] block text-right mt-1 opacity-70", msg.fromMe ? "text-white" : "text-slate-400")}>
               {new Date(msg.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
