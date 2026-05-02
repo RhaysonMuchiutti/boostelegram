@@ -13,7 +13,7 @@ export const TelegramConnectView = () => {
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [telegramUser, setTelegramUser] = useState<string | null>(null);
-  const pollingRef = useRef<number | null>(null);
+  const realtimeChannelRef = useRef<any>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -73,50 +73,56 @@ export const TelegramConnectView = () => {
     return () => clearInterval(timer);
   }, [step, timeLeft]);
 
-  // Limpa o polling ao desmontar ou mudar de passo
+  // Limpa o canal de realtime ao desmontar ou mudar de passo
   useEffect(() => {
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+      }
     };
   }, []);
 
-  const startPollingStatus = (connectionId: string) => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
+  const startRealtimeStatus = (connectionId: string) => {
+    if (realtimeChannelRef.current) {
+      supabase.removeChannel(realtimeChannelRef.current);
+    }
     
-    console.log("Iniciando monitoramento da conexão:", connectionId);
+    console.log("Iniciando monitoramento em tempo real da conexão:", connectionId);
     
-    pollingRef.current = window.setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from("telegram_connections")
-          .select("status, telegram_username")
-          .eq("id", connectionId)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Erro ao buscar status:", error);
-          return;
-        }
-
-        console.log("Status atual da conexão:", data?.status);
-
-        if (data && data.status === "connected") {
-          console.log("Conexão detectada! Parando polling.");
-          if (pollingRef.current) clearInterval(pollingRef.current);
+    const channel = supabase
+      .channel(`conn-${connectionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'telegram_connections',
+          filter: `id=eq.${connectionId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          console.log("Mudança de status detectada via Realtime:", newData.status);
           
-          const username = data.telegram_username || "Usuário";
-          setTelegramUser(username);
-          setStep("connected");
-          
-          toast.success(`Conectado como ${username}!`, {
-            description: "Sua conta do Telegram foi vinculada com sucesso.",
-            duration: 6000,
-          });
+          if (newData.status === 'connected') {
+            const username = newData.telegram_username || "Usuário";
+            setTelegramUser(username);
+            setStep("connected");
+            
+            toast.success(`Conectado como ${username}!`, {
+              description: "Sua conta do Telegram foi vinculada com sucesso em tempo real.",
+              duration: 6000,
+            });
+            
+            if (realtimeChannelRef.current) {
+              supabase.removeChannel(realtimeChannelRef.current);
+              realtimeChannelRef.current = null;
+            }
+          }
         }
-      } catch (err) {
-        console.error("Polling error:", err);
-      }
-    }, 2000);
+      )
+      .subscribe();
+
+    realtimeChannelRef.current = channel;
   };
 
   const handleStartConnection = async () => {
@@ -155,7 +161,7 @@ export const TelegramConnectView = () => {
         setStep("qr");
         setTimeLeft(60);
         if (data.connection_id) {
-          startPollingStatus(data.connection_id);
+          startRealtimeStatus(data.connection_id);
         }
       } else {
         throw new Error("Não foi possível gerar o QR Code.");
