@@ -101,7 +101,6 @@ export const TelegramInterface = () => {
         if (newMsgs.length < 30) setHasMore(false);
         
         if (isLoadMore) {
-          // Store height to restore scroll
           if (scrollRef.current) {
             lastScrollHeight.current = scrollRef.current.scrollHeight;
           }
@@ -109,6 +108,11 @@ export const TelegramInterface = () => {
         } else {
           setMessages(newMsgs);
           setHasMore(true);
+          setTimeout(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }
+          }, 100);
         }
       }
     } catch (err) {
@@ -118,7 +122,6 @@ export const TelegramInterface = () => {
     }
   };
 
-  // Restore scroll position after loading more
   useEffect(() => {
     if (isLoadingMore === false && lastScrollHeight.current > 0 && scrollRef.current) {
       const newHeight = scrollRef.current.scrollHeight;
@@ -130,7 +133,6 @@ export const TelegramInterface = () => {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop } = e.currentTarget;
-    // When scrolling up and reaching the top (or near it)
     if (scrollTop < 50 && !isLoadingMore && hasMore && selectedChat) {
       fetchMessages(selectedChat, true);
     }
@@ -303,7 +305,6 @@ export const TelegramInterface = () => {
                   Nenhuma mensagem recente
                 </div>
               )}
-              <div id="scroll-anchor" />
             </div>
 
             <footer className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
