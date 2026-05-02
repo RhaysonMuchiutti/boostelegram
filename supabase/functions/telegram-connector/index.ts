@@ -368,7 +368,10 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const participants = await client.getParticipants(chatId);
+        const participants = await Promise.race([
+          client.getParticipants(chatId, { limit: 200 }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching participants')), 60000))
+        ]) as any[];
         const result = participants.map((p: any) => ({
           id: p.id.toString(),
           username: p.username,
