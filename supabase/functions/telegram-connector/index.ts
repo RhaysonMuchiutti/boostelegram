@@ -37,6 +37,7 @@ serve(async (req) => {
         appVersion: "1.0.0",
         useWSS: false,
         autoReconnect: true,
+        dcId: 1, // Start with DC1 to avoid some initial DC migrations
       })
 
       try {
@@ -114,20 +115,41 @@ serve(async (req) => {
         (async () => {
           try {
             console.log(`[Background] Waiting for scan: User ${user.id}`);
-            const result = await signInPromise;
-            console.log(`[Background] Scan result:`, result);
+            
+            // Wait for the sign-in to complete with a longer timeout
+            const result = await Promise.race([
+              signInPromise,
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout waiting for scan")), 300000))
+            ]);
+            
+            console.log(`[Background] Scan result received`);
+
+            if (!client.connected) {
+              console.log("[Background] Client disconnected, reconnecting...");
+              await client.connect();
+            }
 
             // Get user info to be sure we are logged in
             const me = await client.getMe();
-            if (!me) throw new Error("Falha ao obter dados do perfil após login");
+            if (!me) {
+              console.log("[Background] Profile data empty, retrying once...");
+              await new Promise(r => setTimeout(r, 2000));
+              const meRetry = await client.getMe();
+              if (!meRetry) throw new Error("Falha ao obter dados do perfil após login");
+            }
             
-            const userData = me as Api.User;
+            const userData = (me || {}) as Api.User;
             const displayName = userData.username || userData.firstName || "Usuário Telegram";
             console.log(`[Background] Logged in as: ${displayName}`);
 
             const sessionString = (client.session as any).save();
             
-            const { error: finalUpdateError } = await supabaseClient
+            // Create fresh internal client for update
+            const internalClient = createClient(supabaseUrl, supabaseAnonKey, {
+              auth: { persistSession: false }
+            });
+
+            const { error: finalUpdateError } = await internalClient
               .from('telegram_connections')
               .update({ 
                 status: 'connected', 
@@ -138,23 +160,28 @@ serve(async (req) => {
               .eq('user_id', user.id);
 
             if (finalUpdateError) {
-              console.error("[Background] Error saving session:", finalUpdateError);
+              console.error("[Background] Error saving session to DB:", finalUpdateError);
             } else {
-              console.log("[Background] Session saved successfully");
+              console.log("[Background] Session saved successfully to DB");
             }
           } catch (e) {
-            console.error("[Background] Error during scan:", e);
-            // Only mark as disconnected if it wasn't already connected (to avoid race conditions)
-            await supabaseClient
+            console.error("[Background] Error during scan process:", e);
+            const internalClient = createClient(supabaseUrl, supabaseAnonKey, {
+              auth: { persistSession: false }
+            });
+            await internalClient
               .from('telegram_connections')
               .update({ status: 'disconnected', updated_at: new Date().toISOString() })
               .eq('user_id', user.id)
               .neq('status', 'connected');
           } finally {
-            // Give it a tiny bit of time before closing
-            await new Promise(r => setTimeout(r, 1000));
-            await client.disconnect();
-            console.log("[Background] Client disconnected");
+            try {
+              await new Promise(r => setTimeout(r, 2000));
+              await client.disconnect();
+              console.log("[Background] Cleanup finished");
+            } catch (err) {
+              console.error("[Background] Error in disconnect:", err);
+            }
           }
         })();
 
