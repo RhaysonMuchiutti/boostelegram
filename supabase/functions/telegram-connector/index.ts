@@ -70,6 +70,19 @@ serve(async (req) => {
     if (action === 'start-qr') {
       console.log(`Starting QR for user ${user.id}`)
       
+      const { data: currentConn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (currentConn?.status === 'connected') {
+        return new Response(
+          JSON.stringify({ error: 'Already connected', status: 'connected' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
       const client = new TelegramClient(new StringSession(''), parseInt(apiId), apiHash, {
         connectionRetries: 5,
         deviceModel: "GrupoBoost Web",

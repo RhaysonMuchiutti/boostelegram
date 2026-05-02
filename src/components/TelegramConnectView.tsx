@@ -165,18 +165,31 @@ export const TelegramConnectView = () => {
   };
 
   const handleStartConnection = async () => {
-    setIsLoading(true);
-    setStep("loading");
-    setElapsed(0);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("telegram_credentials").upsert({
-          user_id: user.id,
-          api_id: apiCredentials.appId,
-          api_hash: apiCredentials.apiHash
-        }, { onConflict: 'user_id' });
+      if (!user) return;
+
+      const { data: conn } = await supabase
+        .from("telegram_connections")
+        .select("status")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (conn?.status === "connected") {
+        setStep("connected");
+        toast.info("Você já está conectado.");
+        return;
       }
+
+      setIsLoading(true);
+      setStep("loading");
+      setElapsed(0);
+      
+      await supabase.from("telegram_credentials").upsert({
+        user_id: user.id,
+        api_id: apiCredentials.appId,
+        api_hash: apiCredentials.apiHash
+      }, { onConflict: 'user_id' });
 
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { action: "start-qr", apiId: apiCredentials.appId, apiHash: apiCredentials.apiHash }
