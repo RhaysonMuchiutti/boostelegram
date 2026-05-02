@@ -48,23 +48,22 @@ export const TelegramInterface = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollHeight = useRef<number>(0);
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const listRef = useRef<any>(null);
+  const rowHeights = useRef<{[key: number]: number}>({});
 
+  const setRowHeight = (index: number, size: number) => {
+    if (rowHeights.current[index] !== size) {
+      rowHeights.current[index] = size;
+      if (listRef.current) {
+        listRef.current.resetAfterIndex(index);
+      }
+    }
+  };
 
+  const getRowHeight = (index: number) => {
+    return rowHeights.current[index] || 100;
+  };
 
-  const init = async () => {
-    setIsLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: connection } = await supabase
-        .from("telegram_connections")
-        .select("status")
-        .eq("user_id", user.id)
-        .maybeSingle();
 
       const status = (connection?.status as any) || "disconnected";
       setConnectionStatus(status);
