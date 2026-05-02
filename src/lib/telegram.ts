@@ -1,5 +1,11 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
+import { Buffer } from "buffer";
+
+// Garantir que Buffer esteja disponível globalmente para a biblioteca telegram
+if (typeof window !== "undefined" && !window.Buffer) {
+  window.Buffer = Buffer;
+}
 
 export interface TelegramConfig {
   apiId: number;
@@ -28,9 +34,13 @@ export const generateQrCode = async (
 ) => {
   try {
     const client = getTelegramClient(config);
-    await client.connect();
+    
+    // Conecta se não estiver conectado
+    if (!client.connected) {
+      await client.connect();
+    }
 
-    const result = await client.signInUserWithQrCode(
+    await client.signInUserWithQrCode(
       { apiId: config.apiId, apiHash: config.apiHash },
       {
         onError: async (err) => {
@@ -42,14 +52,19 @@ export const generateQrCode = async (
           onQrCode(qr);
         },
       }
-    );
+    ).then((result) => {
+      if (result) {
+        const sessionString = (client.session as StringSession).save();
+        onSuccess(sessionString);
+      }
+    }).catch(err => {
+      console.error("SignIn QR Catch:", err);
+      onError(err);
+    });
 
-    if (result) {
-      const sessionString = (client.session as StringSession).save();
-      onSuccess(sessionString);
-    }
   } catch (error) {
     console.error("Telegram Connection Error:", error);
     onError(error);
   }
 };
+
