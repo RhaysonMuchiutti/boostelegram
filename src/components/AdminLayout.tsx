@@ -246,7 +246,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             <div className="w-8 h-8 rounded-full bg-slate-200" />
           </div>
         </header>
-        <div className="p-6">
+        <div className="flex-1 p-6 min-h-0">
           {children}
         </div>
       </main>
