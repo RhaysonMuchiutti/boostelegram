@@ -55,6 +55,10 @@ export const TelegramInterface = () => {
   const [participants, setParticipants] = useState<any[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isImportOpen, setIsParticipantsImportOpen] = useState(false);
+  const [importList, setImportList] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [myGroups, setMyGroups] = useState<any[]>([]);
 
   const listRef = useRef<any>(null);
   const rowHeights = useRef<{[key: number]: number}>({});
