@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen, RefreshCw, QrCode, Wifi, Check, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { ConnectionAuditLog } from "./ConnectionAuditLog";
 
 export const TelegramConnectView = () => {
   const [step, setStep] = useState<"intro" | "credentials" | "qr" | "loading" | "connected">("intro");
@@ -389,6 +390,8 @@ export const TelegramConnectView = () => {
         </CardContent>
       </Card>
       
+      <ConnectionAuditLog />
+
       {/* Help Footer */}
       {step === "qr" && (
         <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
