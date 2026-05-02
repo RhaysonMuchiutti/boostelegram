@@ -15,12 +15,40 @@ import {
 import { cn } from "@/lib/utils";
 
 export const TelegramInterface = () => {
+  const [selectedChat, setSelectedChat] = useState<number | null>(1);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+          .from("telegram_connections")
+          .select("status")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        setIsConnected(data?.status === "connected");
+      } catch (err) {
+        console.error("Erro ao verificar conexão:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkConnection();
+  }, []);
+
   const chats = [
-    { id: 1, name: "Grupo de Tráfego VIP", lastMsg: "Sejam bem-vindos!", time: "14:20", unread: 5, isGroup: true },
+    { id: 1, name: "Grupo de Tráfego VIP", lastMsg: "Sejam bem-vindos!", time: "14:20", unread: 5, isGroup: true, members: "5.234", online: "412" },
     { id: 2, name: "João Silva", lastMsg: "Opa, como funciona o bot?", time: "12:05", unread: 0, isGroup: false },
-    { id: 3, name: "Comunidade Renda Extra", lastMsg: "Novo conteúdo disponível", time: "Ontem", unread: 0, isGroup: true },
+    { id: 3, name: "Comunidade Renda Extra", lastMsg: "Novo conteúdo disponível", time: "Ontem", unread: 0, isGroup: true, members: "1.500", online: "89" },
     { id: 4, name: "Suporte GrupoBoost", lastMsg: "Sua conta foi ativada", time: "Segunda", unread: 1, isGroup: false },
   ];
+
+  const currentChat = chats.find(c => c.id === selectedChat);
 
   return (
     <div className="flex h-[calc(100vh-140px)] bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
