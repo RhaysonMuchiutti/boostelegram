@@ -139,13 +139,11 @@ serve(async (req) => {
           }
         })();
 
-        // Convert Uint8Array to base64url
-        const uint8 = new Uint8Array(qrData.token);
-        let binary = '';
-        for (let i = 0; i < uint8.byteLength; i++) {
-          binary += String.fromCharCode(uint8[i]);
-        }
-        const base64Token = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        // Correctly handle the Buffer/Uint8Array for the QR token
+        const base64Token = btoa(String.fromCharCode(...new Uint8Array(qrData.token)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
         
         return new Response(
           JSON.stringify({ 
