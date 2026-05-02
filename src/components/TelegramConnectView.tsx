@@ -37,7 +37,7 @@ export const TelegramConnectView = () => {
     
     pollingRef.current = window.setInterval(async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("telegram_connections")
           .select("status, session_string")
           .eq("id", connectionId)
@@ -45,7 +45,7 @@ export const TelegramConnectView = () => {
 
         if (error) throw error;
 
-        if (data.status === "connected") {
+        if (data && data.status === "connected") {
           if (pollingRef.current) clearInterval(pollingRef.current);
           setStep("connected");
           toast.success("Telegram conectado com sucesso!");
