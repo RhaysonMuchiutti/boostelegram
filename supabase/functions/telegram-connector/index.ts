@@ -139,8 +139,9 @@ serve(async (req) => {
           }
         })();
 
-        // Correctly handle the Buffer/Uint8Array for the QR token
-        const base64Token = btoa(String.fromCharCode(...new Uint8Array(qrData.token)))
+        // Convert the QR token to base64url correctly
+        const tokenBytes = new Uint8Array(qrData.token);
+        const base64Token = btoa(Array.from(tokenBytes, byte => String.fromCharCode(byte)).join(''))
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
           .replace(/=+$/, '');
