@@ -461,6 +461,96 @@ serve(async (req) => {
       }
     }
 
+    if (action === 'remove-members') {
+      const { groupId, userIds } = body;
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const results = [];
+        const idsToRemove = Array.isArray(userIds) ? userIds : [userIds];
+        
+        for (const userId of idsToRemove) {
+          try {
+            // kickParticipant handles both groups and channels
+            await client.kickParticipant(groupId, userId);
+            results.push({ user: userId, status: 'removed' });
+          } catch (e: any) {
+            results.push({ user: userId, status: 'error', error: e.message });
+          }
+        }
+        
+        await client.disconnect();
+        return new Response(JSON.stringify({ results }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
+    if (action === 'replace-members') {
+      const { groupId, removeUserIds, addUserList } = body;
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const results = { removed: [], added: [] };
+        
+        // 1. Remove
+        const idsToRemove = Array.isArray(removeUserIds) ? removeUserIds : [];
+        for (const userId of idsToRemove) {
+          try {
+            await client.kickParticipant(groupId, userId);
+            results.removed.push({ user: userId, status: 'removed' });
+          } catch (e: any) {
+            results.removed.push({ user: userId, status: 'error', error: e.message });
+          }
+        }
+
+        // 2. Add
+        const usersToAdd = addUserList ? addUserList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean) : [];
+        for (const userHandle of usersToAdd) {
+          try {
+            await client.invoke(new Api.channels.InviteToChannel({
+              channel: groupId,
+              users: [userHandle]
+            }));
+            results.added.push({ user: userHandle, status: 'added' });
+          } catch (e: any) {
+            results.added.push({ user: userHandle, status: 'error', error: e.message });
+          }
+        }
+        
+        await client.disconnect();
+        return new Response(JSON.stringify({ results }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
   } catch (error: any) {
     console.error("Function Error:", error)
     return new Response(JSON.stringify({ error: error.message }), { 
