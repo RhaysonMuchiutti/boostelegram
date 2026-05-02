@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 export const TelegramInterface = () => {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
   const [isLoading, setIsLoading] = useState(true);
   const [chats, setChats] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
@@ -32,37 +33,41 @@ export const TelegramInterface = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollHeight = useRef<number>(0);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  const init = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-        const { data: connection } = await supabase
-          .from("telegram_connections")
-          .select("status")
-          .eq("user_id", user.id)
-          .maybeSingle();
+      const { data: connection } = await supabase
+        .from("telegram_connections")
+        .select("status")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-        const { data: credentials } = await supabase
-          .from("telegram_credentials")
-          .select("api_id, api_hash")
-          .eq("user_id", user.id)
-          .maybeSingle();
+      const status = (connection?.status as any) || "disconnected";
+      setConnectionStatus(status);
 
-        setCreds(credentials);
-        const connected = connection?.status === "connected";
-        setIsConnected(connected);
+      const { data: credentials } = await supabase
+        .from("telegram_credentials")
+        .select("api_id, api_hash")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-        if (connected && credentials) {
-          fetchChats(credentials);
-        }
-      } catch (err) {
-        console.error("Erro ao inicializar:", err);
-      } finally {
-        setIsLoading(false);
+      setCreds(credentials);
+      
+      if (status === "connected" && credentials) {
+        fetchChats(credentials);
       }
-    };
+    } catch (err) {
+      console.error("Erro ao inicializar:", err);
+      setConnectionStatus("error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     init();
   }, []);
 
@@ -170,22 +175,37 @@ export const TelegramInterface = () => {
     }
   };
 
+  const handleReconnect = () => {
+    toast.info("Atualizando status da conexão...");
+    init();
+  };
+
   const currentChat = chats.find(c => c.id === selectedChat);
 
   return (
     <div className="flex h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
-      {!isConnected && !isLoading && (
+      {connectionStatus !== "connected" && !isLoading && (
         <div className="absolute inset-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-6 animate-bounce">
+          <div className={cn(
+            "w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-bounce",
+            connectionStatus === "pending_qr" ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"
+          )}>
             <QrCode className="w-10 h-10" />
           </div>
-          <h3 className="text-2xl font-bold mb-2">Telegram Não Conectado</h3>
+          <h3 className="text-2xl font-bold mb-2">
+            {connectionStatus === "pending_qr" ? "Aguardando QR Code" : "Telegram Desconectado"}
+          </h3>
           <p className="text-slate-500 max-w-md mb-8">
-            Para visualizar e responder seus chats em tempo real, você precisa primeiro vincular sua conta do Telegram.
+            {connectionStatus === "pending_qr" 
+              ? "Sua conexão está pendente. Finalize o escaneamento do QR Code nas configurações."
+              : "Para visualizar e responder seus chats em tempo real, você precisa primeiro vincular sua conta do Telegram."}
           </p>
           <div className="flex gap-4">
-            <Button className="h-12 px-8 rounded-xl font-bold shadow-lg shadow-primary/20">
-              Vincular Agora
+            <Button 
+              onClick={handleReconnect}
+              className="h-12 px-8 rounded-xl font-bold shadow-lg shadow-primary/20"
+            >
+              {connectionStatus === "pending_qr" ? "Concluir Conexão" : "Vincular Agora"}
             </Button>
           </div>
         </div>
@@ -193,6 +213,30 @@ export const TelegramInterface = () => {
 
       <div className="w-80 border-r border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="p-4 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                connectionStatus === "connected" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                connectionStatus === "pending_qr" ? "bg-amber-500 animate-pulse" : "bg-red-500"
+              )} />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {connectionStatus === "connected" ? "Conectado" : 
+                 connectionStatus === "pending_qr" ? "Pendente" : "Desconectado"}
+              </span>
+            </div>
+            {connectionStatus !== "connected" && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 text-slate-400 hover:text-primary"
+                onClick={handleReconnect}
+                title="Sincronizar Status"
+              >
+                <Zap className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input className="pl-10 bg-slate-50 dark:bg-slate-800 border-none h-10" placeholder="Pesquisar..." />
