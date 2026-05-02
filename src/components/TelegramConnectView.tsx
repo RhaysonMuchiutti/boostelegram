@@ -89,7 +89,7 @@ export const TelegramConnectView = () => {
       try {
         const { data, error } = await supabase
           .from("telegram_connections")
-          .select("status, updated_at")
+          .select("status, telegram_username")
           .eq("id", connectionId)
           .maybeSingle();
 
@@ -104,12 +104,13 @@ export const TelegramConnectView = () => {
           console.log("Conexão detectada! Parando polling.");
           if (pollingRef.current) clearInterval(pollingRef.current);
           
-          // Buscar o nome do usuário que acabou de conectar (se disponível)
-          // Em uma implementação futura, poderíamos salvar o username no banco
+          const username = data.telegram_username || "Usuário";
+          setTelegramUser(username);
           setStep("connected");
-          toast.success("Telegram conectado com sucesso!", {
-            description: "Sua conta agora está ativa no sistema.",
-            duration: 5000,
+          
+          toast.success(`Conectado como ${username}!`, {
+            description: "Sua conta do Telegram foi vinculada com sucesso.",
+            duration: 6000,
           });
         }
       } catch (err) {
