@@ -9,7 +9,8 @@ import {
   Menu,
   ChevronRight,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -149,10 +150,17 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             />
             <SidebarItem 
               icon={MessageSquare} 
-              label="Mensagens" 
+              label="Chat" 
               active={activeTab === "messages"}
               collapsed={isCollapsed}
               onClick={() => setActiveTab("messages")}
+            />
+            <SidebarItem 
+              icon={Zap} 
+              label="Automação" 
+              active={activeTab === "automation"}
+              collapsed={isCollapsed}
+              onClick={() => setActiveTab("automation")}
             />
             <SidebarItem 
               icon={Settings} 

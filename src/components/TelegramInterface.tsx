@@ -79,6 +79,9 @@ export const TelegramInterface = () => {
             </div>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
+            <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-amber-50 text-amber-600 text-[10px] font-bold border border-amber-100 animate-pulse">
+              <Zap className="w-3 h-3" /> AUTOMAÇÃO ATIVA
+            </div>
             <Phone className="w-5 h-5 cursor-pointer hover:text-slate-600" />
             <Video className="w-5 h-5 cursor-pointer hover:text-slate-600" />
             <div className="w-px h-6 bg-slate-100" />
