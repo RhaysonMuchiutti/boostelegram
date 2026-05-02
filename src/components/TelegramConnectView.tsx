@@ -44,6 +44,7 @@ export const TelegramConnectView = () => {
         if (conn && conn.status === "connected") {
           setStep("connected");
           setTelegramUser(conn.telegram_username);
+          checkServerStatus();
         }
       } catch (err) {
         console.error("Error loading telegram data:", err);
@@ -108,6 +109,38 @@ export const TelegramConnectView = () => {
       return false;
     } finally {
       setIsVerifyingExtra(false);
+    }
+  };
+
+  const checkServerStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: creds } = await supabase
+        .from("telegram_credentials")
+        .select("api_id, api_hash")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "check-status",
+          apiId: creds?.api_id,
+          apiHash: creds?.api_hash
+        }
+      });
+
+      if (!error && data?.status) {
+        if (data.status === "connected") {
+          setStep("connected");
+          setTelegramUser(data.username || "Usuário");
+        } else {
+          setStep("intro");
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao verificar status no servidor:", err);
     }
   };
 
