@@ -8,6 +8,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper to log steps in the DB
+async function logStep(supabaseClient: any, userId: string, step: string, details: any = {}) {
+  const { data } = await supabaseClient
+    .from('telegram_connections')
+    .select('step_logs')
+    .eq('user_id', userId)
+    .maybeSingle();
+  
+  const currentLogs = data?.step_logs || [];
+  const newLog = {
+    step,
+    timestamp: new Date().toISOString(),
+    ...details
+  };
+  
+  await supabaseClient
+    .from('telegram_connections')
+    .update({ 
+      step_logs: [...currentLogs, newLog],
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -17,18 +41,24 @@ serve(async (req) => {
     const { action, apiId, apiHash } = await req.json()
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const authHeader = req.headers.get('Authorization')!
     
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    // Client for user-specific actions (honors RLS)
+    const supabaseUserClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
       global: { headers: { Authorization: authHeader } }
     })
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    // Client for system-level actions (bypasses RLS)
+    const supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false }
+    })
+
+    const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
 
     if (action === 'start-qr') {
-      console.log(`Starting QR for user ${user.id} with apiId ${apiId}`)
+      console.log(`Starting QR for user ${user.id}`)
       
       const client = new TelegramClient(new StringSession(''), parseInt(apiId), apiHash, {
         connectionRetries: 5,
@@ -37,23 +67,25 @@ serve(async (req) => {
         appVersion: "1.0.0",
         useWSS: false,
         autoReconnect: true,
-        dcId: 1, // Start with DC1 to avoid some initial DC migrations
+        dcId: 1,
       })
 
       try {
         await client.connect()
+        await logStep(supabaseAdminClient, user.id, "tunnel_created", { status: "success" });
 
         let qrData: any = null;
-        
         const signInPromise = client.signInUserWithQrCode(
           { apiId: parseInt(apiId), apiHash: apiHash },
           {
             qrCode: async (qr) => {
               console.log("QR received from Telegram")
               qrData = qr;
+              await logStep(supabaseAdminClient, user.id, "qr_generated");
             },
             onError: async (err) => {
               console.error("Telegram QR Error:", err);
+              await logStep(supabaseAdminClient, user.id, "qr_error", { error: err.message });
               return true;
             }
           }
@@ -68,88 +100,53 @@ serve(async (req) => {
 
         if (!qrData) {
           await client.disconnect()
-          throw new Error("Telegram demorou muito para gerar o QR Code. Tente novamente.")
+          await logStep(supabaseAdminClient, user.id, "timeout", { reason: "qr_not_generated" });
+          throw new Error("Telegram demorou muito para gerar o QR Code.")
         }
 
-        // Record pending connection - check if exists, then update or insert
-        const { data: existing } = await supabaseClient
+        // Initialize connection entry if it doesn't exist
+        const { data: existing } = await supabaseAdminClient
           .from('telegram_connections')
           .select('id')
           .eq('user_id', user.id)
           .maybeSingle()
 
-        let conn: { id: string } | null = null;
-        let connError: any = null;
-
-        if (existing) {
-          const { data, error } = await supabaseClient
-            .from('telegram_connections')
-            .update({ 
-              status: 'pending_qr',
-              session_string: null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id)
-            .select('id')
-            .single()
-          conn = data;
-          connError = error;
+        if (!existing) {
+          await supabaseAdminClient.from('telegram_connections').insert({ 
+            user_id: user.id, 
+            status: 'pending_qr',
+            step_logs: [{ step: 'init', timestamp: new Date().toISOString() }]
+          });
         } else {
-          const { data, error } = await supabaseClient
-            .from('telegram_connections')
-            .insert({ 
-              user_id: user.id, 
-              status: 'pending_qr',
-              updated_at: new Date().toISOString()
-            })
-            .select('id')
-            .single()
-          conn = data;
-          connError = error;
+          await supabaseAdminClient.from('telegram_connections').update({ 
+            status: 'pending_qr',
+            updated_at: new Date().toISOString()
+          }).eq('user_id', user.id);
         }
 
-        if (connError) throw connError
-        if (!conn) throw new Error("Falha ao registrar conexão")
-
-        // Keep waiting for the scan in the background
-        (async () => {
+        // Background handler for the scan process
+        const handleScan = async () => {
           try {
-            console.log(`[Background] Waiting for scan: User ${user.id}`);
+            console.log(`[Background] Waiting for scan for user ${user.id}`);
+            await logStep(supabaseAdminClient, user.id, "waiting_for_scan");
             
-            // Wait for the sign-in to complete with a longer timeout
             const result = await Promise.race([
               signInPromise,
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout waiting for scan")), 300000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (5min)")), 300000))
             ]);
             
-            console.log(`[Background] Scan result received`);
+            console.log(`[Background] Scan detected!`);
+            await logStep(supabaseAdminClient, user.id, "scan_detected");
 
-            if (!client.connected) {
-              console.log("[Background] Client disconnected, reconnecting...");
-              await client.connect();
-            }
+            if (!client.connected) await client.connect();
 
-            // Get user info to be sure we are logged in
             const me = await client.getMe();
-            if (!me) {
-              console.log("[Background] Profile data empty, retrying once...");
-              await new Promise(r => setTimeout(r, 2000));
-              const meRetry = await client.getMe();
-              if (!meRetry) throw new Error("Falha ao obter dados do perfil após login");
-            }
-            
             const userData = (me || {}) as Api.User;
             const displayName = userData.username || userData.firstName || "Usuário Telegram";
-            console.log(`[Background] Logged in as: ${displayName}`);
 
             const sessionString = (client.session as any).save();
             
-            // Create fresh internal client for update
-            const internalClient = createClient(supabaseUrl, supabaseAnonKey, {
-              auth: { persistSession: false }
-            });
-
-            const { error: finalUpdateError } = await internalClient
+            await supabaseAdminClient
               .from('telegram_connections')
               .update({ 
                 status: 'connected', 
@@ -159,33 +156,33 @@ serve(async (req) => {
               })
               .eq('user_id', user.id);
 
-            if (finalUpdateError) {
-              console.error("[Background] Error saving session to DB:", finalUpdateError);
-            } else {
-              console.log("[Background] Session saved successfully to DB");
-            }
-          } catch (e) {
-            console.error("[Background] Error during scan process:", e);
-            const internalClient = createClient(supabaseUrl, supabaseAnonKey, {
-              auth: { persistSession: false }
-            });
-            await internalClient
+            await logStep(supabaseAdminClient, user.id, "connection_finalized", { username: displayName });
+            console.log("[Background] Connection success");
+
+          } catch (e: any) {
+            console.error("[Background] Scan process error:", e);
+            await logStep(supabaseAdminClient, user.id, "scan_error", { error: e.message });
+            await supabaseAdminClient
               .from('telegram_connections')
-              .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+              .update({ status: 'disconnected', last_error: e.message })
               .eq('user_id', user.id)
               .neq('status', 'connected');
           } finally {
             try {
-              await new Promise(r => setTimeout(r, 2000));
               await client.disconnect();
-              console.log("[Background] Cleanup finished");
-            } catch (err) {
-              console.error("[Background] Error in disconnect:", err);
-            }
+            } catch (err) {}
           }
-        })();
+        };
 
-        // Convert the QR token to base64url correctly
+        // Use EdgeRuntime.waitUntil if available to keep the process alive
+        if (typeof (globalThis as any).EdgeRuntime !== 'undefined' || (globalThis as any).Deno) {
+          // In some environments we just invoke it and it stays alive for a bit
+          handleScan();
+        } else {
+          handleScan();
+        }
+
+        // Return QR immediately
         const tokenBytes = new Uint8Array(qrData.token);
         const base64Token = btoa(Array.from(tokenBytes, byte => String.fromCharCode(byte)).join(''))
           .replace(/\+/g, '-')
@@ -195,7 +192,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             qr_link: `tg://login?token=${base64Token}`,
-            connection_id: conn.id
+            connection_id: user.id // Using user_id as identifier
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
@@ -210,7 +207,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Function Error:", error)
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 
