@@ -52,6 +52,15 @@ export const TelegramInterface = () => {
   }, []);
 
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Prevent body scroll when chat is active
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
   const [isLoading, setIsLoading] = useState(true);
   const [chats, setChats] = useState<any[]>([]);
