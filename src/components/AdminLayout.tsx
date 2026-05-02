@@ -85,14 +85,14 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             <Button 
               variant="ghost" 
               size="icon" 
-              className="hidden lg:flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800" 
+              className="hidden lg:flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200" 
               onClick={(e) => {
                 e.stopPropagation();
                 setIsCollapsed(!isCollapsed);
               }}
               title={isCollapsed ? "Expandir menu" : "Recolher menu"}
             >
-              {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+              {isCollapsed ? <PanelLeftOpen className="w-5 h-5 text-primary" /> : <PanelLeftClose className="w-5 h-5 text-primary" />}
             </Button>
           </div>
 
