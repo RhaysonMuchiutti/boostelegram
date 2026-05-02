@@ -29,8 +29,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as ReactWindow from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
-
 const ListVirtual = (ReactWindow as any).VariableSizeList;
+const AutoSizerComponent = AutoSizer as any;
+
 
 export const TelegramInterface = () => {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
