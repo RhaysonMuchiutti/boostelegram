@@ -81,17 +81,25 @@ export const TelegramConnectView = () => {
   const startPollingStatus = (connectionId: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current);
     
+    console.log("Iniciando monitoramento da conexão:", connectionId);
+    
     pollingRef.current = window.setInterval(async () => {
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("telegram_connections")
-          .select("status, session_string")
+          .select("status")
           .eq("id", connectionId)
-          .single();
+          .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Erro ao buscar status:", error);
+          return;
+        }
+
+        console.log("Status atual da conexão:", data?.status);
 
         if (data && data.status === "connected") {
+          console.log("Conexão detectada! Parando polling.");
           if (pollingRef.current) clearInterval(pollingRef.current);
           setStep("connected");
           toast.success("Telegram conectado com sucesso!");
@@ -99,7 +107,7 @@ export const TelegramConnectView = () => {
       } catch (err) {
         console.error("Polling error:", err);
       }
-    }, 3000);
+    }, 2000);
   };
 
   const handleStartConnection = async () => {
