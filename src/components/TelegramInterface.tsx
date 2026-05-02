@@ -125,7 +125,48 @@ export const TelegramInterface = () => {
     }
   };
 
-  const fetchMessages = async (chatId: string, isLoadMore = false) => {
+  const fetchMyGroups = async (credentials: any) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { action: "get-my-groups", apiId: credentials.api_id, apiHash: credentials.api_hash }
+      });
+      if (!error && data?.groups) setMyGroups(data.groups);
+    } catch (err) {
+      console.error("Erro ao buscar meus grupos:", err);
+    }
+  };
+
+  const handleImportMembers = async (groupId: string) => {
+    if (!importList.trim() || !creds) return;
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "add-members", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupId,
+          participantsList: importList
+        }
+      });
+      
+      if (!error && data?.results) {
+        const added = data.results.filter((r: any) => r.status === 'added').length;
+        const errors = data.results.filter((r: any) => r.status === 'error').length;
+        toast.success(`Processo finalizado: ${added} membros adicionados.`);
+        if (errors > 0) toast.error(`${errors} membros falharam.`);
+        setImportList("");
+        setIsParticipantsImportOpen(false);
+        fetchParticipants(groupId);
+      }
+    } catch (err) {
+      console.error("Erro ao importar membros:", err);
+      toast.error("Falha na importação.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
     if (!creds || (isLoadMore && (!hasMore || isLoadingMore))) return;
     
     if (isLoadMore) setIsLoadingMore(true);
