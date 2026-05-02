@@ -281,7 +281,7 @@ serve(async (req) => {
           time: d.message?.date ? (() => { try { return new Date(d.message.date * 1000).toISOString(); } catch { return ""; } })() : "",
           unread: d.unreadCount,
           isGroup: d.isGroup || d.isChannel,
-          members: (d.entity as any).participantsCount || 0
+          members: (d.isGroup || d.isChannel) ? ((d.entity as any).participantsCount || 0) : 0
         }));
         await client.disconnect();
         return new Response(JSON.stringify({ chats }), { 
