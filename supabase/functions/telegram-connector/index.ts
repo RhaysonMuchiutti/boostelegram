@@ -74,7 +74,7 @@ serve(async (req) => {
           user_id: user.id, 
           status: 'pending_qr',
           updated_at: new Date().toISOString()
-        })
+        }, { onConflict: 'user_id' })
         .select()
         .single()
 
