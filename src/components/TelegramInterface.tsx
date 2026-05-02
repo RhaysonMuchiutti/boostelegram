@@ -493,7 +493,7 @@ export const TelegramInterface = () => {
                     {MessageRow}
                   </ListVirtual>
                 )}
-              </AutoSizer>
+              </AutoSizerComponent>
               {messages.length === 0 && !isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center text-slate-400 italic text-sm pointer-events-none">
                   Nenhuma mensagem recente
