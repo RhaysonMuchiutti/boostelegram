@@ -255,10 +255,100 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: 'Action not supported' }), { 
-      status: 400, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    if (action === 'get-chats') {
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) {
+        throw new Error('No active session');
+      }
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const dialogs = await client.getDialogs({ limit: 20 });
+        const chats = dialogs.map(d => ({
+          id: d.id.toString(),
+          name: d.title || "Unknown",
+          lastMsg: d.message?.message || "",
+          time: d.message?.date ? new Date(d.message.date * 1000).toISOString() : "",
+          unread: d.unreadCount,
+          isGroup: d.isGroup || d.isChannel,
+          members: (d.entity as any).participantsCount || 0
+        }));
+        await client.disconnect();
+        return new Response(JSON.stringify({ chats }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
+    if (action === 'get-messages') {
+      const { chatId, limit = 30 } = await req.json();
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const messages = await client.getMessages(chatId, { limit });
+        const result = messages.map(m => ({
+          id: m.id,
+          text: m.message,
+          date: new Date(m.date * 1000).toISOString(),
+          fromMe: m.out,
+          senderName: m.fromId ? 'Other' : 'Me'
+        }));
+        await client.disconnect();
+        return new Response(JSON.stringify({ messages: result }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
+    if (action === 'send-message') {
+      const { chatId, message } = await req.json();
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        await client.sendMessage(chatId, { message });
+        await client.disconnect();
+        return new Response(JSON.stringify({ success: true }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
 
   } catch (error: any) {
     console.error("Function Error:", error)

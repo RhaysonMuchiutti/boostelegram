@@ -20,38 +20,108 @@ import {
 import { cn } from "@/lib/utils";
 
 export const TelegramInterface = () => {
-  const [selectedChat, setSelectedChat] = useState<number | null>(1);
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [chats, setChats] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [creds, setCreds] = useState<any>(null);
 
   useEffect(() => {
-    const checkConnection = async () => {
+    const init = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const { data } = await supabase
+        const { data: connection } = await supabase
           .from("telegram_connections")
           .select("status")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        setIsConnected(data?.status === "connected");
+        const { data: credentials } = await supabase
+          .from("telegram_credentials")
+          .select("api_id, api_hash")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        setCreds(credentials);
+        const connected = connection?.status === "connected";
+        setIsConnected(connected);
+
+        if (connected && credentials) {
+          fetchChats(credentials);
+        }
       } catch (err) {
-        console.error("Erro ao verificar conexão:", err);
+        console.error("Erro ao inicializar:", err);
       } finally {
         setIsLoading(false);
       }
     };
-    checkConnection();
+    init();
   }, []);
 
-  const chats = [
-    { id: 1, name: "Grupo de Tráfego VIP", lastMsg: "Sejam bem-vindos!", time: "14:20", unread: 5, isGroup: true, members: "5.234", online: "412" },
-    { id: 2, name: "João Silva", lastMsg: "Opa, como funciona o bot?", time: "12:05", unread: 0, isGroup: false },
-    { id: 3, name: "Comunidade Renda Extra", lastMsg: "Novo conteúdo disponível", time: "Ontem", unread: 0, isGroup: true, members: "1.500", online: "89" },
-    { id: 4, name: "Suporte GrupoBoost", lastMsg: "Sua conta foi ativada", time: "Segunda", unread: 1, isGroup: false },
-  ];
+  const fetchChats = async (credentials: any) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { action: "get-chats", apiId: credentials.api_id, apiHash: credentials.api_hash }
+      });
+      if (!error && data?.chats) setChats(data.chats);
+    } catch (err) {
+      console.error("Erro ao buscar chats:", err);
+    }
+  };
+
+  const fetchMessages = async (chatId: string) => {
+    if (!creds) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "get-messages", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          chatId 
+        }
+      });
+      if (!error && data?.messages) setMessages(data.messages.reverse());
+    } catch (err) {
+      console.error("Erro ao buscar mensagens:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat);
+      const interval = setInterval(() => fetchMessages(selectedChat), 10000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedChat]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChat || !creds || isSending) return;
+    setIsSending(true);
+    try {
+      const { error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "send-message", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          chatId: selectedChat,
+          message: newMessage
+        }
+      });
+      if (!error) {
+        setNewMessage("");
+        fetchMessages(selectedChat);
+      }
+    } catch (err) {
+      console.error("Erro ao enviar mensagem:", err);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const currentChat = chats.find(c => c.id === selectedChat);
 
