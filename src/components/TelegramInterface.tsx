@@ -16,7 +16,10 @@ import {
   Zap,
   QrCode,
   MessageSquare,
-  List
+  List,
+  Download,
+  FileJson,
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -438,9 +441,53 @@ export const TelegramInterface = () => {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
+                    <DialogHeader className="flex flex-row items-center justify-between space-y-0">
                       <DialogTitle>Membros do Grupo</DialogTitle>
+                      {participants.length > 0 && (
+                        <div className="flex gap-2 mr-8">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[10px] font-bold"
+                            onClick={() => {
+                              const data = JSON.stringify(participants, null, 2);
+                              const blob = new Blob([data], { type: "application/json" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `membros_${currentChat?.name || "grupo"}.json`;
+                              a.click();
+                              toast.success("JSON exportado com sucesso!");
+                            }}
+                          >
+                            <FileJson className="w-3 h-3 mr-1 text-amber-500" />
+                            JSON
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[10px] font-bold"
+                            onClick={() => {
+                              const header = "ID;Nome;Username;Telefone;Bot\n";
+                              const rows = participants.map(p => 
+                                `${p.id};${p.firstName || ""} ${p.lastName || ""};${p.username || ""};${p.phone || ""};${p.isBot ? "Sim" : "Não"}`
+                              ).join("\n");
+                              const blob = new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8;" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `membros_${currentChat?.name || "grupo"}.csv`;
+                              a.click();
+                              toast.success("CSV exportado com sucesso!");
+                            }}
+                          >
+                            <FileSpreadsheet className="w-3 h-3 mr-1 text-emerald-500" />
+                            CSV
+                          </Button>
+                        </div>
+                      )}
                     </DialogHeader>
+
                     <ScrollArea className="max-h-[400px] mt-4">
                       {isLoadingParticipants ? (
                         <div className="flex justify-center py-8">
