@@ -32,6 +32,18 @@ async function logStep(supabaseClient: any, userId: string, step: string, detail
     .eq('user_id', userId);
 }
 
+// Helper for audit logs
+async function logAudit(supabaseClient: any, userId: string, status: string, reason?: string, details: any = {}) {
+  await supabaseClient
+    .from('connection_audit_logs')
+    .insert({
+      user_id: userId,
+      status,
+      reason,
+      details
+    });
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -44,12 +56,10 @@ serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const authHeader = req.headers.get('Authorization')!
     
-    // Client for user-specific actions (honors RLS)
     const supabaseUserClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
       global: { headers: { Authorization: authHeader } }
     })
 
-    // Client for system-level actions (bypasses RLS)
     const supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: { persistSession: false }
     })
@@ -79,7 +89,6 @@ serve(async (req) => {
           { apiId: parseInt(apiId), apiHash: apiHash },
           {
             qrCode: async (qr) => {
-              console.log("QR received from Telegram")
               qrData = qr;
               await logStep(supabaseAdminClient, user.id, "qr_generated");
             },
@@ -91,7 +100,6 @@ serve(async (req) => {
           }
         )
 
-        // Wait for QR to be generated
         let attempts = 0;
         while (!qrData && attempts < 20) {
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -104,7 +112,6 @@ serve(async (req) => {
           throw new Error("Telegram demorou muito para gerar o QR Code.")
         }
 
-        // Initialize connection entry if it doesn't exist
         const { data: existing } = await supabaseAdminClient
           .from('telegram_connections')
           .select('id')
@@ -124,20 +131,16 @@ serve(async (req) => {
           }).eq('user_id', user.id);
         }
 
-        // Background handler for the scan process
         const handleScan = async () => {
           try {
-            console.log(`[Background] Waiting for scan for user ${user.id}`);
             await logStep(supabaseAdminClient, user.id, "waiting_for_scan");
             
-            const result = await Promise.race([
+            await Promise.race([
               signInPromise,
               new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout (5min)")), 300000))
             ]);
             
-            console.log(`[Background] Scan detected!`);
             await logStep(supabaseAdminClient, user.id, "scan_detected");
-
             if (!client.connected) await client.connect();
 
             const me = await client.getMe();
@@ -157,32 +160,25 @@ serve(async (req) => {
               .eq('user_id', user.id);
 
             await logStep(supabaseAdminClient, user.id, "connection_finalized", { username: displayName });
-            console.log("[Background] Connection success");
+            await logAudit(supabaseAdminClient, user.id, 'connected', 'Initial connection success');
 
           } catch (e: any) {
-            console.error("[Background] Scan process error:", e);
             await logStep(supabaseAdminClient, user.id, "scan_error", { error: e.message });
             await supabaseAdminClient
               .from('telegram_connections')
               .update({ status: 'disconnected', last_error: e.message })
               .eq('user_id', user.id)
               .neq('status', 'connected');
+            await logAudit(supabaseAdminClient, user.id, 'disconnected', `Scan failed: ${e.message}`);
           } finally {
             try {
-              await client.disconnect();
+              if (client.connected) await client.disconnect();
             } catch (err) {}
           }
         };
 
-        // Use EdgeRuntime.waitUntil if available to keep the process alive
-        if (typeof (globalThis as any).EdgeRuntime !== 'undefined' || (globalThis as any).Deno) {
-          // In some environments we just invoke it and it stays alive for a bit
-          handleScan();
-        } else {
-          handleScan();
-        }
+        handleScan();
 
-        // Return QR immediately
         const tokenBytes = new Uint8Array(qrData.token);
         const base64Token = btoa(Array.from(tokenBytes, byte => String.fromCharCode(byte)).join(''))
           .replace(/\+/g, '-')
@@ -192,7 +188,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             qr_link: `tg://login?token=${base64Token}`,
-            connection_id: user.id // Using user_id as identifier
+            connection_id: user.id
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
@@ -225,17 +221,20 @@ serve(async (req) => {
         await client.disconnect();
         
         if (me) {
+          await logAudit(supabaseAdminClient, user.id, 'connected', 'Auto-check verified');
           return new Response(JSON.stringify({ status: 'connected', username: conn.telegram_username }), { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         } else {
           throw new Error("Invalid session");
         }
-      } catch (e) {
+      } catch (e: any) {
         await supabaseAdminClient
           .from('telegram_connections')
           .update({ status: 'disconnected', updated_at: new Date().toISOString() })
           .eq('user_id', user.id);
+        
+        await logAudit(supabaseAdminClient, user.id, 'disconnected', `Check failed: ${e.message}`);
           
         return new Response(JSON.stringify({ status: 'disconnected' }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
