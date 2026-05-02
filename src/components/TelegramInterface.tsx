@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 export const TelegramInterface = () => {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
   const [isLoading, setIsLoading] = useState(true);
   const [chats, setChats] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
@@ -193,6 +194,30 @@ export const TelegramInterface = () => {
 
       <div className="w-80 border-r border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="p-4 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                connectionStatus === "connected" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                connectionStatus === "pending_qr" ? "bg-amber-500 animate-pulse" : "bg-red-500"
+              )} />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {connectionStatus === "connected" ? "Conectado" : 
+                 connectionStatus === "pending_qr" ? "Pendente" : "Desconectado"}
+              </span>
+            </div>
+            {connectionStatus !== "connected" && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 text-slate-400 hover:text-primary"
+                onClick={handleReconnect}
+                title="Reconectar"
+              >
+                <Zap className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input className="pl-10 bg-slate-50 dark:bg-slate-800 border-none h-10" placeholder="Pesquisar..." />
