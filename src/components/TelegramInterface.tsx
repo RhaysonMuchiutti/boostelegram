@@ -29,11 +29,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as ReactWindow from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
+
 const ListVirtual = (ReactWindow as any).VariableSizeList;
-
-
-
-
 
 export const TelegramInterface = () => {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
@@ -48,6 +45,10 @@ export const TelegramInterface = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollHeight = useRef<number>(0);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+
   const listRef = useRef<any>(null);
   const rowHeights = useRef<{[key: number]: number}>({});
 
@@ -64,6 +65,17 @@ export const TelegramInterface = () => {
     return rowHeights.current[index] || 100;
   };
 
+  const init = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: connection } = await supabase
+        .from("telegram_connections")
+        .select("status")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       const status = (connection?.status as any) || "disconnected";
       setConnectionStatus(status);
@@ -108,7 +120,6 @@ export const TelegramInterface = () => {
     if (isLoadMore) setIsLoadingMore(true);
     
     try {
-      // Logic for loading more (older messages)
       let offsetId;
       if (isLoadMore && messages.length > 0) {
         offsetId = messages[0].id;
@@ -138,8 +149,8 @@ export const TelegramInterface = () => {
           setMessages(newMsgs);
           setHasMore(true);
           setTimeout(() => {
-            if (scrollRef.current) {
-              scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            if (listRef.current) {
+              listRef.current.scrollToItem(newMsgs.length - 1, "end");
             }
           }, 100);
         }
@@ -163,34 +174,25 @@ export const TelegramInterface = () => {
           apiId: creds.api_id, 
           apiHash: creds.api_hash,
           chatId,
-          limit: 10 // Just grab latest
+          limit: 10
         }
       });
 
       if (!error && data?.messages) {
         const incoming = data.messages.reverse();
-        // Filter messages that are newer than our last stored message ID
         const onlyNew = incoming.filter((m: any) => m.id > lastMessageId);
         
         if (onlyNew.length > 0) {
           setMessages(prev => {
-            // Re-verify against current state to prevent duplicates in edge cases
             const currentLastId = prev.length > 0 ? prev[prev.length - 1].id : 0;
             const strictlyNew = onlyNew.filter((m: any) => m.id > currentLastId);
             return [...prev, ...strictlyNew];
           });
           
-          // Auto-scroll to bottom if user is already near bottom
-          if (scrollRef.current) {
-            const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-            const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-            if (isNearBottom) {
-              setTimeout(() => {
-                if (scrollRef.current) {
-                  scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-                }
-              }, 100);
-            }
+          if (listRef.current) {
+             // In virtualized list, we check offset instead of DOM scroll
+             // But for simplicity let's just scroll if they were roughly at the end
+             listRef.current.scrollToItem(messages.length + onlyNew.length - 1, "end");
           }
         }
       }
@@ -201,27 +203,21 @@ export const TelegramInterface = () => {
 
   useEffect(() => {
     if (isLoadingMore === false && lastScrollHeight.current > 0 && scrollRef.current) {
-      const newHeight = scrollRef.current.scrollHeight;
-      const heightDiff = newHeight - lastScrollHeight.current;
-      scrollRef.current.scrollTop = heightDiff;
-      lastScrollHeight.current = 0;
+      // In virtualized list, we handle scroll restoration differently, 
+      // but VariableSizeList handles some of this if we maintain the index.
     }
   }, [messages, isLoadingMore]);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop } = e.currentTarget;
-    if (scrollTop < 50 && !isLoadingMore && hasMore && selectedChat) {
-      fetchMessages(selectedChat, true);
-    }
-  };
-
   useEffect(() => {
     if (selectedChat) {
+      setMessages([]);
+      setHasMore(true);
+      rowHeights.current = {};
       fetchMessages(selectedChat);
       const interval = setInterval(() => pollNewMessages(selectedChat), 5000);
       return () => clearInterval(interval);
     }
-  }, [selectedChat, messages.length]); // messages.length to keep closure fresh for pollNewMessages
+  }, [selectedChat]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || !creds || isSending) return;
@@ -268,14 +264,43 @@ export const TelegramInterface = () => {
     } catch (err) {
       console.error("Erro ao buscar participantes:", err);
     } finally {
-      setIsLoadingParticipants(true); // Should be false, wait
       setIsLoadingParticipants(false);
     }
   };
 
   const currentChat = chats.find(c => c.id === selectedChat);
 
+  const MessageRow = ({ index, style }: { index: number, style: any }) => {
+    const msg = messages[index];
+    const rowRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+      if (rowRef.current) {
+        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 24); // 24 for gap
+      }
+    }, [msg.text]);
+
+    return (
+      <div style={style}>
+        <div ref={rowRef} className={cn("flex gap-3 max-w-[80%] mx-6 my-3", msg.fromMe ? "ml-auto flex-row-reverse" : "")}>
+          <div className={cn("w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] text-white font-bold", msg.fromMe ? "bg-primary" : "bg-slate-200 dark:bg-slate-800")}>
+            {msg.fromMe ? "EU" : <User className="w-4 h-4" />}
+          </div>
+          <div className={cn(
+            "p-3 rounded-2xl shadow-sm border",
+            msg.fromMe 
+              ? "bg-primary text-white border-transparent rounded-tr-none" 
+              : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 rounded-tl-none"
+          )}>
+            <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+            <span className={cn("text-[10px] block text-right mt-1", msg.fromMe ? "text-white/70" : "text-slate-400")}>
+              {new Date(msg.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
@@ -445,47 +470,30 @@ export const TelegramInterface = () => {
                   </DialogContent>
                 </Dialog>
                 <MoreVertical className="w-5 h-5 cursor-pointer hover:text-slate-600" />
-
               </div>
             </header>
 
-            <div 
-              ref={scrollRef}
-              onScroll={handleScroll}
-              className="flex-1 p-6 overflow-y-auto space-y-6 flex flex-col"
-            >
-              {hasMore && (
-                <div className="flex justify-center py-2">
-                  {isLoadingMore ? (
-                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <span className="text-xs text-slate-400">Arraste para cima para carregar mais</span>
-                  )}
-                </div>
-              )}
-              
-              <div className="flex flex-col gap-6">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={cn("flex gap-3 max-w-[80%]", msg.fromMe ? "ml-auto flex-row-reverse" : "")}>
-                    <div className={cn("w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] text-white font-bold", msg.fromMe ? "bg-primary" : "bg-slate-200 dark:bg-slate-800")}>
-                      {msg.fromMe ? "EU" : <User className="w-4 h-4" />}
-                    </div>
-                    <div className={cn(
-                      "p-3 rounded-2xl shadow-sm border",
-                      msg.fromMe 
-                        ? "bg-primary text-white border-transparent rounded-tr-none" 
-                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 rounded-tl-none"
-                    )}>
-                      <p className="text-sm">{msg.text}</p>
-                      <span className={cn("text-[10px] block text-right mt-1", msg.fromMe ? "text-white/70" : "text-slate-400")}>
-                        {new Date(msg.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {messages.length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-slate-400 italic text-sm">
+            <div className="flex-1 bg-slate-50/30 dark:bg-slate-900/50">
+              <AutoSizer>
+                {({ height, width }) => (
+                  <ListVirtual
+                    ref={listRef}
+                    height={height}
+                    width={width}
+                    itemCount={messages.length}
+                    itemSize={getRowHeight}
+                    onScroll={({ scrollOffset, scrollDirection }) => {
+                      if (scrollDirection === "backward" && scrollOffset < 50 && !isLoadingMore && hasMore && selectedChat) {
+                        fetchMessages(selectedChat, true);
+                      }
+                    }}
+                  >
+                    {MessageRow}
+                  </ListVirtual>
+                )}
+              </AutoSizer>
+              {messages.length === 0 && !isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center text-slate-400 italic text-sm pointer-events-none">
                   Nenhuma mensagem recente
                 </div>
               )}
