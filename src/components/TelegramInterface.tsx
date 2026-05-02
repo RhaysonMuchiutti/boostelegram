@@ -20,7 +20,11 @@ import {
   Download,
   FileJson,
   FileSpreadsheet,
-  Table as TableIcon
+  Table as TableIcon,
+  Settings,
+  Shield,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
