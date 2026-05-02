@@ -13,6 +13,8 @@ export const TelegramConnectView = () => {
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [telegramUser, setTelegramUser] = useState<string | null>(null);
+  const [isVerifyingExtra, setIsVerifyingExtra] = useState(false);
+  const [currentConnId, setCurrentConnId] = useState<string | null>(null);
   const realtimeChannelRef = useRef<any>(null);
 
   useEffect(() => {
@@ -82,12 +84,54 @@ export const TelegramConnectView = () => {
     };
   }, []);
 
+  const verifyConnectionStatus = async (connectionId: string) => {
+    setIsVerifyingExtra(true);
+    try {
+      // Pequeno delay para garantir que o banco terminou de processar o commit da sessão
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const { data, error } = await supabase
+        .from("telegram_connections")
+        .select("status, telegram_username")
+        .eq("id", connectionId)
+        .single();
+
+      if (error) throw error;
+
+      if (data && data.status === "connected") {
+        const username = data.telegram_username || "Usuário";
+        setTelegramUser(username);
+        setStep("connected");
+        
+        toast.success(`Conexão confirmada!`, {
+          description: `Bem-vindo, ${username}. Sua sessão está ativa.`,
+          duration: 5000,
+        });
+        
+        if (realtimeChannelRef.current) {
+          supabase.removeChannel(realtimeChannelRef.current);
+          realtimeChannelRef.current = null;
+        }
+        return true;
+      } else {
+        toast.error("Ainda não detectamos a confirmação. Tente escanear novamente.");
+        return false;
+      }
+    } catch (err) {
+      console.error("Erro na verificação extra:", err);
+      toast.error("Erro ao validar conexão no servidor.");
+      return false;
+    } finally {
+      setIsVerifyingExtra(false);
+    }
+  };
+
   const startRealtimeStatus = (connectionId: string) => {
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
     }
     
-    console.log("Iniciando monitoramento em tempo real da conexão:", connectionId);
+    console.log("Monitorando conexão:", connectionId);
     
     const channel = supabase
       .channel(`conn-${connectionId}`)
@@ -99,24 +143,11 @@ export const TelegramConnectView = () => {
           table: 'telegram_connections',
           filter: `id=eq.${connectionId}`,
         },
-        (payload) => {
+        async (payload) => {
           const newData = payload.new as any;
-          console.log("Mudança de status detectada via Realtime:", newData.status);
-          
           if (newData.status === 'connected') {
-            const username = newData.telegram_username || "Usuário";
-            setTelegramUser(username);
-            setStep("connected");
-            
-            toast.success(`Conectado como ${username}!`, {
-              description: "Sua conta do Telegram foi vinculada com sucesso em tempo real.",
-              duration: 6000,
-            });
-            
-            if (realtimeChannelRef.current) {
-              supabase.removeChannel(realtimeChannelRef.current);
-              realtimeChannelRef.current = null;
-            }
+            console.log("Realtime: Connected! Iniciando verificação extra de segurança...");
+            await verifyConnectionStatus(connectionId);
           }
         }
       )
