@@ -4,6 +4,8 @@ import { DashboardView } from "@/components/DashboardView";
 import { CampaignForm } from "@/components/CampaignForm";
 import { PrivacySettingsView } from "@/components/PrivacySettingsView";
 import { BotFlowDesign } from "@/components/BotFlowDesign";
+import { TelegramConnectView } from "@/components/TelegramConnectView";
+import { TelegramInterface } from "@/components/TelegramInterface";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
