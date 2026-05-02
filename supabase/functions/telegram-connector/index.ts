@@ -278,7 +278,7 @@ serve(async (req) => {
           id: d.id.toString(),
           name: d.title || "Unknown",
           lastMsg: d.message?.message || "",
-          time: d.message?.date ? new Date(d.message.date * 1000).toISOString() : "",
+          time: d.message?.date ? (() => { try { return new Date(d.message.date * 1000).toISOString(); } catch { return ""; } })() : "",
           unread: d.unreadCount,
           isGroup: d.isGroup || d.isChannel,
           members: (d.entity as any).participantsCount || 0
@@ -315,7 +315,7 @@ serve(async (req) => {
         const result = messages.map(m => ({
           id: m.id,
           text: m.message,
-          date: new Date(m.date * 1000).toISOString(),
+          date: m.date ? new Date(m.date * 1000).toISOString() : new Date().toISOString(),
           fromMe: m.out,
           senderName: m.fromId ? 'Other' : 'Me'
         }));
