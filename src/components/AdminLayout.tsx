@@ -7,7 +7,9 @@ import {
   Settings, 
   LogOut,
   Menu,
-  ChevronRight
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -83,10 +85,14 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             <Button 
               variant="ghost" 
               size="icon" 
-              className="hidden lg:flex" 
-              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="hidden lg:flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800" 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCollapsed(!isCollapsed);
+              }}
+              title={isCollapsed ? "Expandir menu" : "Recolher menu"}
             >
-              <Menu className="w-4 h-4" />
+              {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
             </Button>
           </div>
 
