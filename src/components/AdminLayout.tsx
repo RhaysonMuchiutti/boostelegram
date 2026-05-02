@@ -10,7 +10,8 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
-  Zap
+  Zap,
+  Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -168,6 +169,13 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
               active={activeTab === "settings"}
               collapsed={isCollapsed}
               onClick={() => setActiveTab("settings")}
+            />
+            <SidebarItem 
+              icon={Key} 
+              label="Telegram API" 
+              active={activeTab === "telegram-api"}
+              collapsed={isCollapsed}
+              onClick={() => setActiveTab("telegram-api")}
             />
           </nav>
 

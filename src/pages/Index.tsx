@@ -7,6 +7,7 @@ import { BotFlowDesign } from "@/components/BotFlowDesign";
 import { TelegramConnectView } from "@/components/TelegramConnectView";
 import { TelegramInterface } from "@/components/TelegramInterface";
 import { AutomationRulesView } from "@/components/AutomationRulesView";
+import { TelegramSettingsView } from "@/components/TelegramSettingsView";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -18,8 +19,9 @@ const Index = () => {
       {activeTab === "leads" && <TelegramConnectView />}
       {activeTab === "messages" && <TelegramInterface />}
       {activeTab === "automation" && <AutomationRulesView />}
-      {activeTab === "settings" && <PrivacySettingsView />}
-      {activeTab === "bot-flow" && <BotFlowDesign />}
+          {activeTab === "settings" && <PrivacySettingsView />}
+          {activeTab === "telegram-api" && <TelegramSettingsView />}
+          {activeTab === "bot-flow" && <BotFlowDesign />}
     </AdminLayout>
   );
 };
