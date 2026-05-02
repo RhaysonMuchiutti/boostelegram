@@ -475,7 +475,8 @@ export const TelegramInterface = () => {
 
             <div className="flex-1 bg-slate-50/30 dark:bg-slate-900/50">
               <AutoSizer>
-                {({ height, width }) => (
+                {({ height, width }: any) => (
+
                   <ListVirtual
                     ref={listRef}
                     height={height}
