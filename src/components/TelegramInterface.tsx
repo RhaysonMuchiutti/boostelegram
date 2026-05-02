@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
@@ -144,7 +143,6 @@ export const TelegramInterface = () => {
         </div>
       )}
 
-      {/* Sidebar de Chats */}
       <div className="w-80 border-r border-slate-100 dark:border-slate-800 flex flex-col">
         <div className="p-4 space-y-4">
           <div className="relative">
@@ -172,7 +170,7 @@ export const TelegramInterface = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
                   <h4 className="font-semibold text-sm truncate">{chat.name}</h4>
-                  <span className="text-[10px] text-slate-400">{chat.time}</span>
+                  <span className="text-[10px] text-slate-400">{chat.time ? new Date(chat.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <p className="text-xs text-slate-500 truncate">{chat.lastMsg}</p>
@@ -188,7 +186,6 @@ export const TelegramInterface = () => {
         </div>
       </div>
 
-      {/* Janela de Chat */}
       <div className="flex-1 flex flex-col bg-slate-50/30 dark:bg-slate-900/50">
         {currentChat ? (
           <>
@@ -203,7 +200,7 @@ export const TelegramInterface = () => {
                 <div>
                   <h4 className="font-bold text-sm">{currentChat.name}</h4>
                   {currentChat.isGroup ? (
-                    <p className="text-[10px] text-emerald-500 font-medium">{currentChat.members} membros, {currentChat.online} online</p>
+                    <p className="text-[10px] text-emerald-500 font-medium">{currentChat.members} membros</p>
                   ) : (
                     <p className="text-[10px] text-emerald-500 font-medium">Online</p>
                   )}
@@ -220,42 +217,56 @@ export const TelegramInterface = () => {
               </div>
             </header>
 
-            <div className="flex-1 p-6 overflow-y-auto space-y-6">
-              <div className="flex justify-center">
-                <span className="bg-slate-200/50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-3 py-1 rounded-full font-medium">
-                  HOJE
-                </span>
+            <div className="flex-1 p-6 overflow-y-auto space-y-6 flex flex-col-reverse">
+              <div className="flex flex-col gap-6">
+                {messages.map((msg) => (
+                  <div key={msg.id} className={cn("flex gap-3 max-w-[80%]", msg.fromMe ? "ml-auto flex-row-reverse" : "")}>
+                    <div className={cn("w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[10px] text-white font-bold", msg.fromMe ? "bg-primary" : "bg-slate-200 dark:bg-slate-800")}>
+                      {msg.fromMe ? "EU" : <User className="w-4 h-4" />}
+                    </div>
+                    <div className={cn(
+                      "p-3 rounded-2xl shadow-sm border",
+                      msg.fromMe 
+                        ? "bg-primary text-white border-transparent rounded-tr-none" 
+                        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 rounded-tl-none"
+                    )}>
+                      <p className="text-sm">{msg.text}</p>
+                      <span className={cn("text-[10px] block text-right mt-1", msg.fromMe ? "text-white/70" : "text-slate-400")}>
+                        {new Date(msg.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex gap-3 max-w-[80%]">
-                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
-                <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 dark:border-slate-700">
-                  <p className="text-sm">Sejam bem-vindos ao grupo oficial de Tráfego VIP! Aqui vamos compartilhar as melhores estratégias.</p>
-                  <span className="text-[10px] text-slate-400 block text-right mt-1">14:20</span>
+              {messages.length === 0 && (
+                <div className="flex-1 flex items-center justify-center text-slate-400 italic text-sm">
+                  Nenhuma mensagem recente
                 </div>
-              </div>
-
-              <div className="flex gap-3 max-w-[80%] ml-auto flex-row-reverse">
-                <div className="w-8 h-8 rounded-full bg-primary shrink-0 flex items-center justify-center text-[10px] text-white font-bold">
-                  EU
-                </div>
-                <div className="bg-primary text-white p-3 rounded-2xl rounded-tr-none shadow-sm">
-                  <p className="text-sm">Obrigado! Pronto para começar.</p>
-                  <span className="text-[10px] text-white/70 block text-right mt-1">14:25</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <footer className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-4 max-w-4xl mx-auto">
                 <Paperclip className="w-6 h-6 text-slate-400 cursor-pointer hover:text-primary" />
                 <div className="flex-1 relative">
-                  <Input className="bg-slate-50 dark:bg-slate-800 border-none h-11 pr-12" placeholder="Escreva uma mensagem..." />
+                  <Input 
+                    className="bg-slate-50 dark:bg-slate-800 border-none h-11 pr-12" 
+                    placeholder="Escreva uma mensagem..." 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
+                    disabled={isSending}
+                  />
                   <Smile className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 cursor-pointer hover:text-primary" />
                 </div>
-                <div className="w-11 h-11 bg-primary rounded-full flex items-center justify-center text-white cursor-pointer shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+                <Button 
+                  size="icon"
+                  disabled={isSending || !newMessage.trim()}
+                  onClick={handleSendMessage}
+                  className="w-11 h-11 bg-primary rounded-full flex items-center justify-center text-white cursor-pointer shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                >
                   <Send className="w-5 h-5" />
-                </div>
+                </Button>
               </div>
             </footer>
           </>
