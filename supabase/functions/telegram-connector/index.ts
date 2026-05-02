@@ -51,7 +51,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { action, apiId, apiHash, chatId, message, limit } = body
+    const { action, apiId, apiHash, chatId, message, limit, offsetId } = body
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -308,7 +308,10 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const messages = await client.getMessages(chatId, { limit: msgLimit });
+        const messages = await client.getMessages(chatId, { 
+          limit: msgLimit,
+          offsetId: offsetId ? parseInt(offsetId) : undefined
+        });
         const result = messages.map(m => ({
           id: m.id,
           text: m.message,
