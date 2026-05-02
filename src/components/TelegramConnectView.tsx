@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import QRCode from "react-qr-code";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen, RefreshCw } from "lucide-react";
+import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen, RefreshCw, QrCode, Wifi, Check, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const TelegramConnectView = () => {
   const [step, setStep] = useState<"intro" | "credentials" | "qr" | "loading" | "connected">("intro");
   const [timeLeft, setTimeLeft] = useState(60);
+  const [elapsed, setElapsed] = useState(0);
   const [qrString, setQrString] = useState(""); 
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +25,6 @@ export const TelegramConnectView = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // 1. Carregar credenciais (API ID/Hash)
         const { data: creds } = await supabase
           .from("telegram_credentials")
           .select("api_id, api_hash")
@@ -32,24 +32,18 @@ export const TelegramConnectView = () => {
           .maybeSingle();
 
         if (creds) {
-          setApiCredentials({
-            appId: creds.api_id,
-            apiHash: creds.api_hash
-          });
+          setApiCredentials({ appId: creds.api_id, apiHash: creds.api_hash });
         }
 
-        // 2. Carregar status da conexão
         const { data: conn } = await supabase
           .from("telegram_connections")
           .select("id, status, telegram_username")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (conn) {
-          if (conn.status === "connected") {
-            setStep("connected");
-            setTelegramUser(conn.telegram_username);
-          }
+        if (conn && conn.status === "connected") {
+          setStep("connected");
+          setTelegramUser(conn.telegram_username);
         }
       } catch (err) {
         console.error("Error loading telegram data:", err);
@@ -57,14 +51,16 @@ export const TelegramConnectView = () => {
         setIsLoading(false);
       }
     };
-
     loadData();
   }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (step === "qr" && timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+      timer = setInterval(() => {
+        setTimeLeft((t) => t - 1);
+        setElapsed((e) => e + 1);
+      }, 1000);
     }
     if (timeLeft === 0 && step === "qr") {
       handleStartConnection(); 
@@ -84,7 +80,6 @@ export const TelegramConnectView = () => {
     setIsVerifyingExtra(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
       const { data, error } = await supabase
         .from("telegram_connections")
         .select("status, telegram_username")
@@ -97,26 +92,19 @@ export const TelegramConnectView = () => {
         const username = data.telegram_username || "Usuário";
         setTelegramUser(username);
         setStep("connected");
-        
         toast.success("Conexão confirmada!", {
-          description: `Bem-vindo, ${username}. Sua conta foi vinculada com sucesso.`,
+          description: `Sua conta foi vinculada com sucesso.`,
           duration: 5000,
         });
-        
-        if (realtimeChannelRef.current) {
-          supabase.removeChannel(realtimeChannelRef.current);
-          realtimeChannelRef.current = null;
-        }
         return true;
       } else {
         toast.info("Aguardando confirmação...", {
-          description: "Certifique-se de que autorizou o dispositivo no seu celular."
+          description: "Confirme a conexão no seu aplicativo do Telegram."
         });
         return false;
       }
     } catch (err) {
       console.error("Erro na verificação:", err);
-      toast.error("Erro ao validar conexão.");
       return false;
     } finally {
       setIsVerifyingExtra(false);
@@ -124,58 +112,43 @@ export const TelegramConnectView = () => {
   };
 
   const startRealtimeStatus = (connectionId: string) => {
-    if (realtimeChannelRef.current) {
-      supabase.removeChannel(realtimeChannelRef.current);
-    }
-    
+    if (realtimeChannelRef.current) supabase.removeChannel(realtimeChannelRef.current);
     const channel = supabase
       .channel(`conn-${connectionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'telegram_connections',
-          filter: `id=eq.${connectionId}`,
-        },
-        async (payload) => {
-          const newData = payload.new as any;
-          if (newData.status === 'connected') {
-            await verifyConnectionStatus(connectionId);
-          }
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'telegram_connections',
+        filter: `id=eq.${connectionId}`,
+      }, async (payload) => {
+        const newData = payload.new as any;
+        if (newData.status === 'connected') {
+          await verifyConnectionStatus(connectionId);
         }
-      )
+      })
       .subscribe();
-
     realtimeChannelRef.current = channel;
   };
 
   const handleStartConnection = async () => {
     setIsLoading(true);
     setStep("loading");
-    
+    setElapsed(0);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase
-          .from("telegram_credentials")
-          .upsert({
-            user_id: user.id,
-            api_id: apiCredentials.appId,
-            api_hash: apiCredentials.apiHash
-          }, { onConflict: 'user_id' });
+        await supabase.from("telegram_credentials").upsert({
+          user_id: user.id,
+          api_id: apiCredentials.appId,
+          api_hash: apiCredentials.apiHash
+        }, { onConflict: 'user_id' });
       }
 
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
-        body: { 
-          action: "start-qr",
-          apiId: apiCredentials.appId,
-          apiHash: apiCredentials.apiHash
-        }
+        body: { action: "start-qr", apiId: apiCredentials.appId, apiHash: apiCredentials.apiHash }
       });
 
       if (error) throw error;
-
       if (data?.qr_link) {
         setQrString(data.qr_link);
         setStep("qr");
@@ -184,209 +157,201 @@ export const TelegramConnectView = () => {
           setCurrentConnId(data.connection_id);
           startRealtimeStatus(data.connection_id);
         }
-      } else {
-        throw new Error("Não foi possível gerar o QR Code.");
       }
     } catch (err: any) {
-      console.error("Connection error:", err);
       setStep("credentials");
-      toast.error(err.message || "Erro ao conectar.");
+      toast.error("Erro ao iniciar conexão.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const stepsList = [
+    { id: 1, label: "Credenciais", status: step === "intro" || step === "credentials" ? "current" : "done" },
+    { id: 2, label: "Escaneamento", status: step === "qr" ? "current" : (step === "connected" ? "done" : "todo") },
+    { id: 3, label: "Confirmação", status: step === "qr" && elapsed > 2 ? "current" : (step === "connected" ? "done" : "todo") },
+    { id: 4, label: "Conectado", status: step === "connected" ? "done" : "todo" }
+  ];
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 py-8 px-4">
-      <div className="text-center space-y-2 mb-8">
-        <h2 className="text-3xl font-bold tracking-tight">Conectar Telegram</h2>
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <div className={`w-2 h-2 rounded-full ${step === "connected" ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
-          <span className={`text-sm font-medium ${step === "connected" ? "text-emerald-600" : "text-muted-foreground"}`}>
-            {step === "connected" ? "Status: Conectado" : "Status: Desconectado"}
-          </span>
+      <div className="text-center space-y-4 mb-8">
+        <h2 className="text-3xl font-extrabold tracking-tight">Vincular Telegram</h2>
+        
+        {/* Stepper Progress */}
+        <div className="flex items-center justify-between max-w-md mx-auto relative px-2">
+          {stepsList.map((s, idx) => (
+            <div key={s.id} className="flex flex-col items-center z-10">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
+                s.status === "done" ? "bg-emerald-500 border-emerald-500 text-white" :
+                s.status === "current" ? "border-primary bg-white text-primary animate-pulse" :
+                "bg-slate-100 border-slate-200 text-slate-400"
+              }`}>
+                {s.status === "done" ? <Check className="w-4 h-4" /> : s.id}
+              </div>
+              <span className={`text-[10px] mt-1 font-bold uppercase tracking-wider ${
+                s.status === "done" ? "text-emerald-600" :
+                s.status === "current" ? "text-primary" : "text-slate-400"
+              }`}>{s.label}</span>
+            </div>
+          ))}
+          {/* Progress Lines */}
+          <div className="absolute top-4 left-0 right-0 h-[2px] bg-slate-100 -z-0 mx-8" />
         </div>
       </div>
 
-      <Card className="border-2 shadow-xl overflow-hidden bg-white dark:bg-slate-900">
-        <CardContent className="pt-6 relative">
+      <Card className="border-none shadow-2xl overflow-hidden bg-white dark:bg-slate-900 ring-1 ring-slate-200 dark:ring-slate-800">
+        <CardContent className="pt-6 relative min-h-[400px] flex flex-col justify-center">
           {isVerifyingExtra && (
-            <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-300">
+            <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 animate-in fade-in">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                <ShieldCheck className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary" />
+                <div className="w-20 h-20 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <ShieldCheck className="w-8 h-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary" />
               </div>
-              <div className="text-center space-y-1">
-                <p className="font-bold text-xl text-slate-900 dark:text-white">Confirmando Conexão</p>
-                <p className="text-sm text-muted-foreground">Sincronizando sua sessão com o banco de dados...</p>
+              <div className="text-center">
+                <p className="font-bold text-xl">Sincronizando Sessão</p>
+                <p className="text-sm text-muted-foreground italic">Aguarde a resposta final do servidor...</p>
               </div>
             </div>
           )}
 
           {step === "intro" && (
-            <div className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 flex flex-col items-center text-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                    <Smartphone className="w-6 h-6" />
-                  </div>
-                  <h4 className="font-semibold">Sessão Segura</h4>
-                  <p className="text-xs text-muted-foreground">Sua conta permanece ativa em nossos servidores 24h.</p>
+            <div className="space-y-8 animate-in fade-in">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center text-primary rotate-3">
+                  <Smartphone className="w-10 h-10" />
                 </div>
-                <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 flex flex-col items-center text-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
-                  <h4 className="font-semibold">Criptografia Real</h4>
-                  <p className="text-xs text-muted-foreground">Conexão via MTProto (protocolo oficial do Telegram).</p>
-                </div>
+                <h3 className="text-2xl font-bold">Modo Web x Mobile</h3>
+                <p className="text-slate-500 max-w-sm">Mantenha sua automação rodando 24h sem precisar do celular ligado o tempo todo.</p>
               </div>
-
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-lg flex gap-3 items-start">
-                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <p className="font-bold mb-1">Aviso de Segurança</p>
-                  <p>As chaves de API são armazenadas de forma segura para manter sua automação rodando.</p>
-                </div>
-              </div>
-
-              <Button className="w-full h-12 text-lg shadow-lg shadow-primary/20" onClick={() => setStep("credentials")}>
-                Próximo Passo
+              <Button className="w-full h-14 text-lg font-bold rounded-2xl" onClick={() => setStep("credentials")}>
+                Começar Configuração
               </Button>
             </div>
           )}
 
           {step === "credentials" && (
-            <div className="space-y-6 py-4 animate-in fade-in slide-in-from-bottom-4">
+            <div className="space-y-6 animate-in slide-in-from-right-4">
               <div className="space-y-2">
-                <h4 className="font-bold text-xl">Credenciais de Desenvolvedor</h4>
-                <p className="text-sm text-muted-foreground">
-                  Insira os dados obtidos em <a href="https://my.telegram.org" target="_blank" rel="noreferrer" className="text-primary underline font-bold">my.telegram.org</a>.
-                </p>
+                <h4 className="font-bold text-xl">1. Dados da API</h4>
+                <p className="text-sm text-muted-foreground">Obtenha as chaves em my.telegram.org</p>
               </div>
-              
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold">API ID</label>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-slate-500 ml-1">App API ID</label>
                   <input 
-                    type="text"
-                    className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
+                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 focus:ring-2 ring-primary transition-all"
                     placeholder="Ex: 1234567"
                     value={apiCredentials.appId}
                     onChange={(e) => setApiCredentials({...apiCredentials, appId: e.target.value})}
                   />
                 </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold">API Hash</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase text-slate-500 ml-1">App API Hash</label>
                   <input 
-                    type="text"
-                    className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-                    placeholder="Ex: a1b2c3d4e5f6g7h8i9j0"
+                    className="w-full h-12 bg-slate-50 border-none rounded-xl px-4 focus:ring-2 ring-primary transition-all"
+                    placeholder="Ex: a1b2c3d4..."
                     value={apiCredentials.apiHash}
                     onChange={(e) => setApiCredentials({...apiCredentials, apiHash: e.target.value})}
                   />
                 </div>
               </div>
-
-              <Button 
-                className="w-full h-12" 
-                disabled={!apiCredentials.appId || !apiCredentials.apiHash || isLoading}
-                onClick={handleStartConnection}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Iniciando...
-                  </>
-                ) : (
-                  "Gerar QR Code"
-                )}
-              </Button>
-              <Button variant="ghost" className="w-full" onClick={() => setStep("intro")} disabled={isLoading}>Voltar</Button>
+              <div className="flex gap-3">
+                <Button variant="ghost" className="h-14 flex-1 rounded-2xl" onClick={() => setStep("intro")}>Voltar</Button>
+                <Button className="h-14 flex-[2] rounded-2xl" disabled={!apiCredentials.appId || !apiCredentials.apiHash} onClick={handleStartConnection}>
+                  Gerar QR Code
+                </Button>
+              </div>
             </div>
           )}
 
           {step === "loading" && (
-            <div className="flex flex-col items-center py-12 space-y-6">
+            <div className="flex flex-col items-center py-12 space-y-6 text-center">
               <div className="relative">
-                <Loader2 className="w-16 h-16 animate-spin text-primary" />
-                <PanelLeftOpen className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary/50" />
+                <Loader2 className="w-16 h-16 animate-spin text-primary/30" />
+                <Wifi className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary animate-pulse" />
               </div>
-              <div className="text-center space-y-2">
-                <p className="font-bold text-xl">Iniciando Ponte Segura</p>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  Preparando ambiente isolado no servidor.
-                </p>
+              <div className="space-y-1">
+                <p className="font-bold text-xl">Criando Túnel Seguro</p>
+                <p className="text-sm text-slate-400 italic">Conectando aos servidores do Telegram via MTProto...</p>
               </div>
             </div>
           )}
 
           {step === "qr" && (
-            <div className="flex flex-col items-center py-6 space-y-8 animate-in zoom-in-95">
-              <div className="relative p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-100 group">
-                <div className="p-2 bg-white">
-                  <QRCode 
-                    value={qrString} 
-                    size={220}
-                    level="M"
-                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                  />
+            <div className="flex flex-col items-center py-4 space-y-6 animate-in zoom-in-95">
+              <div className="p-6 bg-white rounded-[2.5rem] shadow-xl border border-slate-100 relative group">
+                <div className="p-2">
+                  <QRCode value={qrString} size={200} level="M" />
                 </div>
-                <div className="absolute -top-3 -right-3 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-                  <RefreshCw className="w-6 h-6" />
-                </div>
+                {elapsed > 45 && (
+                  <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6 text-center rounded-[2.5rem] backdrop-blur-sm">
+                    <AlertCircle className="w-10 h-10 text-amber-500 mb-2" />
+                    <p className="text-xs font-bold text-slate-800">Tempo de espera longo</p>
+                    <p className="text-[10px] text-slate-500 mb-4">A conexão parece estar demorando. Sugerimos reiniciar.</p>
+                    <Button size="sm" variant="outline" onClick={handleStartConnection} className="rounded-full h-8 px-4">Reiniciar</Button>
+                  </div>
+                )}
               </div>
 
               <div className="text-center space-y-4 max-w-sm">
-                <div className="space-y-2">
-                  <p className="font-bold text-2xl">Escaneie o Código</p>
-                  <p className="text-sm text-muted-foreground">
-                    No Telegram: <b>Configurações</b> {" > "} <b>Dispositivos</b> {" > "} <b>Conectar</b>
-                  </p>
+                <div className="space-y-1">
+                  <p className="font-bold text-xl">2. Escaneie Agora</p>
+                  <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg flex items-center justify-center gap-2">
+                    <Smartphone className="w-3 h-3" />
+                    Configurações {">"} Dispositivos {">"} Conectar
+                  </div>
                 </div>
                 
-                <div className="flex flex-col gap-4 items-center w-full">
-                  <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-slate-100 text-sm font-bold text-slate-700">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    Expira em: <span className="text-primary">{timeLeft}s</span>
+                <div className="flex flex-col gap-3 items-center w-full">
+                  <div className={`inline-flex items-center gap-3 px-6 py-2 rounded-full text-xs font-bold transition-all ${elapsed > 30 ? "bg-amber-100 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
+                    <Clock className="w-3 h-3" />
+                    Status: {elapsed}s decorridos
                   </div>
 
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    className="text-[11px] text-slate-400 hover:text-primary transition-all underline-offset-4 hover:underline"
                     onClick={() => currentConnId && verifyConnectionStatus(currentConnId)}
                     disabled={isVerifyingExtra}
                   >
                     <RefreshCw className={`w-3 h-3 mr-2 ${isVerifyingExtra ? "animate-spin" : ""}`} />
-                    {isVerifyingExtra ? "Confirmando..." : "Já escaneou? Clique para confirmar"}
+                    {isVerifyingExtra ? "Validando..." : "Já confirmou no celular? Clique aqui"}
                   </Button>
                 </div>
-
-                <p className="text-xs text-slate-400 italic">
-                  O sistema detectará o escaneamento automaticamente.
-                </p>
               </div>
             </div>
           )}
 
           {step === "connected" && (
-            <div className="flex flex-col items-center py-12 space-y-6 animate-in fade-in">
-              <div className="w-24 h-24 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-inner">
-                <CheckCircle2 className="w-14 h-14" />
+            <div className="flex flex-col items-center py-12 space-y-6 text-center animate-in zoom-in-95 duration-500">
+              <div className="w-28 h-28 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-xl shadow-emerald-100/50">
+                <CheckCircle2 className="w-16 h-16" />
               </div>
-              <div className="text-center space-y-2">
-                <h3 className="text-3xl font-bold text-slate-900">Conta Conectada!</h3>
-                <p className="text-emerald-600 font-medium text-lg">Olá, {telegramUser || "Usuário"}!</p>
-                <p className="text-muted-foreground">Seu Telegram agora está integrado ao servidor.</p>
+              <div className="space-y-2">
+                <h3 className="text-3xl font-extrabold text-slate-900">Sucesso!</h3>
+                <p className="text-emerald-600 font-bold text-lg">Olá, {telegramUser}!</p>
+                <p className="text-slate-400 text-sm max-w-[240px] mx-auto leading-relaxed">Sua conta está integrada e pronta para receber automações.</p>
               </div>
-              <Button className="h-12 px-8 rounded-full" onClick={() => setStep("intro")}>
-                Desconectar e Configurar Novo
+              <Button className="h-14 px-10 rounded-2xl bg-slate-900 hover:bg-slate-800" onClick={() => setStep("intro")}>
+                Gerenciar Conexão
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
+      
+      {/* Help Footer */}
+      {step === "qr" && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="text-[11px] text-amber-900 leading-relaxed">
+            <p className="font-bold mb-1">Dica de conexão:</p>
+            <p>Se você já escaneou e o status não mudou, verifique se o Telegram no celular exibiu a notificação "Novo Dispositivo Conectado". Caso contrário, tente re-escanear.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
