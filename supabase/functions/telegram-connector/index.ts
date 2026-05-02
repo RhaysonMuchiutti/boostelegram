@@ -50,7 +50,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, apiId, apiHash } = await req.json()
+    const body = await req.json()
+    const { action, apiId, apiHash, chatId, message, limit } = body
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -292,7 +293,7 @@ serve(async (req) => {
     }
 
     if (action === 'get-messages') {
-      const { chatId, limit = 30 } = await req.json();
+      const msgLimit = limit || 30;
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
@@ -307,7 +308,7 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const messages = await client.getMessages(chatId, { limit });
+        const messages = await client.getMessages(chatId, { limit: msgLimit });
         const result = messages.map(m => ({
           id: m.id,
           text: m.message,
@@ -325,7 +326,7 @@ serve(async (req) => {
     }
 
     if (action === 'send-message') {
-      const { chatId, message } = await req.json();
+      // chatId and message already destructured from body
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
