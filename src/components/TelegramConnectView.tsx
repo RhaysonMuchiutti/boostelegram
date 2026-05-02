@@ -146,12 +146,29 @@ export const TelegramConnectView = () => {
 
               <Button 
                 className="w-full h-12" 
-                disabled={!apiCredentials.appId || !apiCredentials.apiHash}
-                onClick={() => setStep("qr")}
+                disabled={!apiCredentials.appId || !apiCredentials.apiHash || isLoading}
+                onClick={handleStartConnection}
               >
-                Gerar QR Code de Sessão
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Iniciando Conexão...
+                  </>
+                ) : (
+                  "Gerar QR Code de Sessão"
+                )}
               </Button>
-              <Button variant="ghost" className="w-full" onClick={() => setStep("intro")}>Voltar</Button>
+              <Button variant="ghost" className="w-full" onClick={() => setStep("intro")} disabled={isLoading}>Voltar</Button>
+            </div>
+          )}
+
+          {step === "loading" && (
+            <div className="flex flex-col items-center py-12 space-y-6">
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+              <div className="text-center">
+                <p className="font-bold text-lg">Estabelecendo ponte com o Telegram...</p>
+                <p className="text-sm text-muted-foreground">Isso pode levar alguns segundos.</p>
+              </div>
             </div>
           )}
 
