@@ -46,6 +46,7 @@ export const TelegramConnectView = () => {
         if (conn) {
           if (conn.status === "connected") {
             setStep("connected");
+            setTelegramUser(conn.telegram_username);
           } else if (conn.status === "pending_qr") {
             // Se estiver pendente, tentamos reiniciar para pegar um QR novo
             // ou apenas deixamos o usuário iniciar manualmente
