@@ -668,16 +668,17 @@ export const TelegramInterface = () => {
                 <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
                   <DialogTrigger asChild>
                     <Button 
-                      variant="ghost" 
-                      size="icon" 
+                      variant="outline" 
+                      size="sm" 
                       className={cn(
-                        "h-9 w-9 text-slate-400 hover:text-primary",
+                        "h-9 gap-2 text-slate-600 hover:text-primary border-slate-200 shadow-sm",
                         !myGroups.some(g => g.id === currentChat?.id) && "hidden"
                       )}
                       title="Gerenciar Membros"
                       onClick={() => currentChat && fetchParticipants(currentChat.id)}
                     >
-                      <Settings className="w-5 h-5" />
+                      <Settings className="w-4 h-4" />
+                      <span className="hidden md:inline">Gerenciar</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">
