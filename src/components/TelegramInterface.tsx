@@ -28,9 +28,9 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as ReactWindow from "react-window";
+import { AutoSizer } from "react-virtualized-auto-sizer";
 const ListVirtual = (ReactWindow as any).VariableSizeList;
 
-import { AutoSizer } from "react-virtualized-auto-sizer";
 
 
 
