@@ -1,4 +1,4 @@
-import { useState, Suspense, lazy } from "react";
+import { useState, Suspense, lazy, ErrorBoundary } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { DashboardView } from "@/components/DashboardView";
 import { CampaignForm } from "@/components/CampaignForm";
@@ -15,7 +15,9 @@ const Index = () => {
 
   return (
     <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-      <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+      <ErrorBoundary fallback={<div className="p-8 text-center">Ocorreu um erro ao carregar esta seção. Tente recarregar a página.</div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+
         {activeTab === "dashboard" && <DashboardView />}
         {activeTab === "campaigns" && <CampaignForm />}
         {activeTab === "leads" && <TelegramConnectView />}
