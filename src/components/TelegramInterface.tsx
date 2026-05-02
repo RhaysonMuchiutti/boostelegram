@@ -216,6 +216,9 @@ export const TelegramInterface = () => {
     }
   };
 
+  const currentChat = chats.find(c => c.id === selectedChat);
+
+
 
   return (
     <div className="flex h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
