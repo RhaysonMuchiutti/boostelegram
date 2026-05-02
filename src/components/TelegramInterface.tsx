@@ -41,7 +41,11 @@ export const TelegramInterface = () => {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastScrollHeight = useRef<number>(0);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
 
