@@ -68,18 +68,45 @@ serve(async (req) => {
           throw new Error("Telegram demorou muito para gerar o QR Code. Tente novamente.")
         }
 
-        // Record pending connection
-        const { data: conn, error: connError } = await supabaseClient
+        // Record pending connection - check if exists, then update or insert
+        const { data: existing } = await supabaseClient
           .from('telegram_connections')
-          .upsert({ 
-            user_id: user.id, 
-            status: 'pending_qr',
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id' })
-          .select()
-          .single()
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        let conn: { id: string } | null = null;
+        let connError: any = null;
+
+        if (existing) {
+          const { data, error } = await supabaseClient
+            .from('telegram_connections')
+            .update({ 
+              status: 'pending_qr',
+              session_string: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .select('id')
+            .single()
+          conn = data;
+          connError = error;
+        } else {
+          const { data, error } = await supabaseClient
+            .from('telegram_connections')
+            .insert({ 
+              user_id: user.id, 
+              status: 'pending_qr',
+              updated_at: new Date().toISOString()
+            })
+            .select('id')
+            .single()
+          conn = data;
+          connError = error;
+        }
 
         if (connError) throw connError
+        if (!conn) throw new Error("Falha ao registrar conexão")
 
         // Keep waiting for the scan in the background
         // Use a self-invoking function that doesn't block the response
