@@ -43,6 +43,14 @@ const ListVirtual = (ReactWindow as any).VariableSizeList;
 const AutoSizerComponent = AutoSizer as any;
 
 export const TelegramInterface = () => {
+  useEffect(() => {
+    // Add overflow hidden to body to prevent double scrollbars
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
   const [isLoading, setIsLoading] = useState(true);
