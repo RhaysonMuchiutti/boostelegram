@@ -137,6 +137,7 @@ export const TelegramInterface = () => {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { action: "get-my-groups", apiId: credentials.api_id, apiHash: credentials.api_hash }
       });
+      console.log("Meus grupos carregados:", data?.groups);
       if (!error && data?.groups) setMyGroups(data.groups);
     } catch (err) {
       console.error("Erro ao buscar meus grupos:", err);
