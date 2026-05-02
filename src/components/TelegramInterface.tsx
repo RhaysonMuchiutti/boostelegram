@@ -103,7 +103,11 @@ export const TelegramInterface = () => {
     if (isLoadMore) setIsLoadingMore(true);
     
     try {
-      const offsetId = isLoadMore && messages.length > 0 ? messages[0].id : undefined;
+      // Logic for loading more (older messages)
+      let offsetId;
+      if (isLoadMore && messages.length > 0) {
+        offsetId = messages[0].id;
+      }
       
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
@@ -118,9 +122,9 @@ export const TelegramInterface = () => {
 
       if (!error && data?.messages) {
         const newMsgs = data.messages.reverse();
-        if (newMsgs.length < 30) setHasMore(false);
         
         if (isLoadMore) {
+          if (newMsgs.length < 30) setHasMore(false);
           if (scrollRef.current) {
             lastScrollHeight.current = scrollRef.current.scrollHeight;
           }
@@ -139,6 +143,54 @@ export const TelegramInterface = () => {
       console.error("Erro ao buscar mensagens:", err);
     } finally {
       if (isLoadMore) setIsLoadingMore(false);
+    }
+  };
+
+  const pollNewMessages = async (chatId: string) => {
+    if (!creds || !messages.length) return;
+    
+    try {
+      const lastMessageId = messages[messages.length - 1].id;
+      
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "get-messages", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          chatId,
+          limit: 10 // Just grab latest
+        }
+      });
+
+      if (!error && data?.messages) {
+        const incoming = data.messages.reverse();
+        // Filter messages that are newer than our last stored message ID
+        const onlyNew = incoming.filter((m: any) => m.id > lastMessageId);
+        
+        if (onlyNew.length > 0) {
+          setMessages(prev => {
+            // Re-verify against current state to prevent duplicates in edge cases
+            const currentLastId = prev.length > 0 ? prev[prev.length - 1].id : 0;
+            const strictlyNew = onlyNew.filter((m: any) => m.id > currentLastId);
+            return [...prev, ...strictlyNew];
+          });
+          
+          // Auto-scroll to bottom if user is already near bottom
+          if (scrollRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+            if (isNearBottom) {
+              setTimeout(() => {
+                if (scrollRef.current) {
+                  scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }
+              }, 100);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Erro no polling de mensagens:", err);
     }
   };
 
@@ -161,10 +213,10 @@ export const TelegramInterface = () => {
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat);
-      const interval = setInterval(() => fetchMessages(selectedChat), 10000);
+      const interval = setInterval(() => pollNewMessages(selectedChat), 5000);
       return () => clearInterval(interval);
     }
-  }, [selectedChat]);
+  }, [selectedChat, messages.length]); // messages.length to keep closure fresh for pollNewMessages
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || !creds || isSending) return;
