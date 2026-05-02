@@ -195,7 +195,27 @@ export const TelegramInterface = () => {
     init();
   };
 
-  const currentChat = chats.find(c => c.id === selectedChat);
+  const fetchParticipants = async (chatId: string) => {
+    if (!creds) return;
+    setIsLoadingParticipants(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "get-participants", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          chatId 
+        }
+      });
+      if (!error && data?.participants) setParticipants(data.participants);
+    } catch (err) {
+      console.error("Erro ao buscar participantes:", err);
+    } finally {
+      setIsLoadingParticipants(true); // Should be false, wait
+      setIsLoadingParticipants(false);
+    }
+  };
+
 
   return (
     <div className="flex h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
