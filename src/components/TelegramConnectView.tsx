@@ -324,7 +324,8 @@ export const TelegramConnectView = () => {
               </div>
               <div className="text-center space-y-2">
                 <h3 className="text-3xl font-bold text-slate-900">Conta Conectada!</h3>
-                <p className="text-muted-foreground text-lg">Seu Telegram agora está integrado ao servidor do GrupoBoost.</p>
+                <p className="text-emerald-600 font-medium text-lg">Olá, {telegramUser || "Usuário"}!</p>
+                <p className="text-muted-foreground">Seu Telegram agora está integrado ao servidor do GrupoBoost.</p>
               </div>
               <Button className="h-12 px-8 rounded-full" onClick={() => setStep("intro")}>
                 Desconectar e Configurar Novo
