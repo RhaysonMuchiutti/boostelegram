@@ -137,6 +137,7 @@ export const TelegramInterface = () => {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { action: "get-my-groups", apiId: credentials.api_id, apiHash: credentials.api_hash }
       });
+      console.log("Meus grupos carregados:", data?.groups);
       if (!error && data?.groups) setMyGroups(data.groups);
     } catch (err) {
       console.error("Erro ao buscar meus grupos:", err);
@@ -629,15 +630,16 @@ export const TelegramInterface = () => {
                 <Dialog open={isImportOpen} onOpenChange={setIsParticipantsImportOpen}>
                   <DialogTrigger asChild>
                     <Button 
-                      variant="ghost" 
-                      size="icon" 
+                      variant="outline" 
+                      size="sm" 
                       className={cn(
-                        "h-9 w-9 text-slate-400 hover:text-primary",
+                        "h-9 gap-2 text-slate-600 hover:text-primary border-slate-200 shadow-sm",
                         !myGroups.some(g => g.id === currentChat?.id) && "hidden"
                       )}
                       title="Importar Membros"
                     >
-                      <Download className="w-5 h-5" />
+                      <Download className="w-4 h-4" />
+                      <span className="hidden md:inline">Importar</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px]">
@@ -668,16 +670,17 @@ export const TelegramInterface = () => {
                 <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
                   <DialogTrigger asChild>
                     <Button 
-                      variant="ghost" 
-                      size="icon" 
+                      variant="outline" 
+                      size="sm" 
                       className={cn(
-                        "h-9 w-9 text-slate-400 hover:text-primary",
+                        "h-9 gap-2 text-slate-600 hover:text-primary border-slate-200 shadow-sm",
                         !myGroups.some(g => g.id === currentChat?.id) && "hidden"
                       )}
                       title="Gerenciar Membros"
                       onClick={() => currentChat && fetchParticipants(currentChat.id)}
                     >
-                      <Settings className="w-5 h-5" />
+                      <Settings className="w-4 h-4" />
+                      <span className="hidden md:inline">Gerenciar</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[500px]">

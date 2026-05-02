@@ -273,7 +273,7 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const dialogs = await client.getDialogs({ limit: 20 });
+        const dialogs = await client.getDialogs({ limit: 100 });
         const chats = dialogs.map(d => ({
           id: d.id.toString(),
           name: d.title || "Unknown",
@@ -281,7 +281,7 @@ serve(async (req) => {
           time: d.message?.date ? (() => { try { return new Date(d.message.date * 1000).toISOString(); } catch { return ""; } })() : "",
           unread: d.unreadCount,
           isGroup: d.isGroup || d.isChannel,
-          members: (d.entity as any).participantsCount || 0
+          members: (d.isGroup || d.isChannel) ? ((d.entity as any).participantsCount || 0) : 0
         }));
         await client.disconnect();
         return new Response(JSON.stringify({ chats }), { 
@@ -441,16 +441,28 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const dialogs = await client.getDialogs({});
+        console.log(`Fetching groups for user ${user.id}`);
+        const dialogs = await client.getDialogs({ limit: 100 });
+        
         const myGroups = dialogs
-          .filter(d => (d.isGroup || d.isChannel) && (d.entity as any).creator)
+          .filter(d => {
+            const isGrpOrChnl = d.isGroup || d.isChannel;
+            // A dialog is manageable if the user is the creator OR has admin rights
+            const isCreator = (d.entity as any)?.creator;
+            const isAdmin = (d.entity as any)?.adminRights !== null && (d.entity as any)?.adminRights !== undefined;
+            
+            return isGrpOrChnl && (isCreator || isAdmin);
+          })
           .map(d => ({
             id: d.id.toString(),
             title: d.title,
             participantsCount: (d.entity as any).participantsCount || 0,
             isChannel: d.isChannel,
-            isAdmin: true
+            isAdmin: true,
+            isCreator: (d.entity as any)?.creator || false
           }));
+          
+        console.log(`Found ${myGroups.length} manageable groups/channels`);
           
         await client.disconnect();
         return new Response(JSON.stringify({ groups: myGroups }), { 
