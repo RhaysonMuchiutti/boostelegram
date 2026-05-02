@@ -329,7 +329,6 @@ serve(async (req) => {
     }
 
     if (action === 'send-message') {
-      // chatId and message already destructured from body
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
@@ -353,6 +352,44 @@ serve(async (req) => {
         throw e;
       }
     }
+
+    if (action === 'get-participants') {
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const participants = await client.getParticipants(chatId);
+        const result = participants.map((p: any) => ({
+          id: p.id.toString(),
+          username: p.username,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          phone: p.phone,
+          isBot: p.bot
+        }));
+        await client.disconnect();
+        return new Response(JSON.stringify({ participants: result }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
+    return new Response(JSON.stringify({ error: 'Action not supported' }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
 
   } catch (error: any) {
     console.error("Function Error:", error)
