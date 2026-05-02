@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 export const TelegramConnectView = () => {
   const [step, setStep] = useState<"intro" | "credentials" | "qr" | "loading" | "connected">("intro");
@@ -37,7 +37,7 @@ export const TelegramConnectView = () => {
     
     pollingRef.current = window.setInterval(async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("telegram_connections")
           .select("status, session_string")
           .eq("id", connectionId)
@@ -45,7 +45,7 @@ export const TelegramConnectView = () => {
 
         if (error) throw error;
 
-        if (data.status === "connected") {
+        if (data && data.status === "connected") {
           if (pollingRef.current) clearInterval(pollingRef.current);
           setStep("connected");
           toast.success("Telegram conectado com sucesso!");
