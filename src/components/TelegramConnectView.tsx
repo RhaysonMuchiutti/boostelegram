@@ -1,14 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import QRCode from "react-qr-code";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen } from "lucide-react";
+import { generateQrCode } from "@/lib/telegram";
+import { toast } from "sonner";
+import { Buffer } from "buffer";
 
 export const TelegramConnectView = () => {
   const [step, setStep] = useState<"intro" | "credentials" | "qr" | "loading" | "connected">("intro");
   const [timeLeft, setTimeLeft] = useState(60);
-  const [qrString, setQrString] = useState("tg://login?token=AQEAAA..."); // Exemplo de string que o Telegram gera
+  const [qrString, setQrString] = useState(""); 
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
+  const [isLoading, setIsLoading] = useState(false);
+  const isConnecting = useRef(false);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -17,6 +22,51 @@ export const TelegramConnectView = () => {
     }
     return () => clearInterval(timer);
   }, [step, timeLeft]);
+
+  const handleStartConnection = async () => {
+    if (isConnecting.current) return;
+    
+    setIsLoading(true);
+    setStep("loading");
+    isConnecting.current = true;
+
+    try {
+      await generateQrCode(
+        { 
+          apiId: parseInt(apiCredentials.appId), 
+          apiHash: apiCredentials.apiHash 
+        },
+        (qr) => {
+          // O Telegram retorna o token em Buffer, precisamos converter para a URL que o app entende
+          const base64Token = Buffer.from(qr.token).toString("base64url");
+          const url = `tg://login?token=${base64Token}`;
+          setQrString(url);
+          setStep("qr");
+          setIsLoading(false);
+          setTimeLeft(60);
+        },
+        (session) => {
+          console.log("Conectado com sucesso!");
+          localStorage.setItem("tg_session", session);
+          setStep("connected");
+          isConnecting.current = false;
+          toast.success("Telegram conectado com sucesso!");
+        },
+        (error) => {
+          console.error(error);
+          setIsLoading(false);
+          setStep("credentials");
+          isConnecting.current = false;
+          toast.error("Erro ao conectar: Verifique suas credenciais.");
+        }
+      );
+    } catch (err) {
+      setIsLoading(false);
+      setStep("credentials");
+      isConnecting.current = false;
+      toast.error("Erro inesperado ao iniciar conexão.");
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 py-8 px-4">
