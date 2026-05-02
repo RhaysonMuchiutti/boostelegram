@@ -665,6 +665,101 @@ export const TelegramInterface = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
+                <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={cn(
+                        "h-9 w-9 text-slate-400 hover:text-primary",
+                        !myGroups.some(g => g.id === currentChat?.id) && "hidden"
+                      )}
+                      title="Gerenciar Membros"
+                      onClick={() => currentChat && fetchParticipants(currentChat.id)}
+                    >
+                      <Settings className="w-5 h-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Gerenciar {currentChat?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-6 py-4">
+                      <div className="space-y-4">
+                        <label className="text-xs font-bold uppercase text-slate-500">Membros Atuais ({participants.length})</label>
+                        <ScrollArea className="h-[250px] pr-4 border rounded-xl bg-slate-50 dark:bg-slate-900/50 p-2">
+                          {isLoadingParticipants ? (
+                            <div className="flex justify-center py-8">
+                              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {participants.map((p) => (
+                                <div key={p.id} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold">
+                                      {p.firstName?.[0] || "?"}
+                                    </div>
+                                    <div className="truncate">
+                                      <p className="text-xs font-semibold truncate">{p.firstName} {p.lastName}</p>
+                                      {p.username && <p className="text-[10px] text-slate-400 truncate">@{p.username}</p>}
+                                    </div>
+                                  </div>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    onClick={() => currentChat && handleRemoveMember(currentChat.id, p.id)}
+                                    disabled={isManaging}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              {participants.length === 0 && (
+                                <p className="text-center text-slate-400 py-8 italic text-xs">Nenhum membro carregado</p>
+                              )}
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold uppercase text-slate-500">Substituir por Novos</label>
+                          <div className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded border border-amber-100 dark:border-amber-900/30">
+                            <Shield className="w-3 h-3" />
+                            Ação em Massa
+                          </div>
+                        </div>
+                        <textarea
+                          className="w-full h-24 bg-slate-50 dark:bg-slate-800 border-none rounded-xl p-3 text-sm focus:ring-2 ring-primary transition-all resize-none"
+                          placeholder="Novos membros (@user1, @user2...)"
+                          value={replaceList}
+                          onChange={(e) => setReplaceList(e.target.value)}
+                        />
+                        <Button 
+                          variant="outline"
+                          className="w-full h-11 rounded-xl font-bold border-primary/20 text-primary hover:bg-primary hover:text-white transition-all"
+                          disabled={isManaging || !replaceList.trim() || participants.length === 0}
+                          onClick={() => {
+                            if (currentChat) {
+                               const ids = participants.map(p => p.id);
+                               handleReplaceMembers(currentChat.id, ids);
+                            }
+                          }}
+                        >
+                          {isManaging ? (
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                          )}
+                          Substituir Todos por Novos
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <MoreVertical className="w-5 h-5 cursor-pointer hover:text-slate-600" />
               </div>
             </header>
