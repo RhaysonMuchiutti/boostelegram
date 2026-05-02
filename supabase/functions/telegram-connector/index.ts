@@ -386,10 +386,80 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: 'Action not supported' }), { 
-      status: 400, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    if (action === 'add-members') {
+      const { groupId, participantsList } = body;
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const results = [];
+        const usersToAdd = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+        
+        for (const userHandle of usersToAdd) {
+          try {
+            await client.invoke(new Api.channels.InviteToChannel({
+              channel: groupId,
+              users: [userHandle]
+            }));
+            results.push({ user: userHandle, status: 'added' });
+          } catch (e: any) {
+            results.push({ user: userHandle, status: 'error', error: e.message });
+          }
+        }
+        
+        await client.disconnect();
+        return new Response(JSON.stringify({ results }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
+    if (action === 'get-my-groups') {
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const dialogs = await client.getDialogs({});
+        const myGroups = dialogs
+          .filter(d => (d.isGroup || d.isChannel) && (d.entity as any).creator)
+          .map(d => ({
+            id: d.id.toString(),
+            title: d.title,
+            participantsCount: (d.entity as any).participantsCount || 0,
+            isChannel: d.isChannel,
+            isAdmin: true
+          }));
+          
+        await client.disconnect();
+        return new Response(JSON.stringify({ groups: myGroups }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
 
   } catch (error: any) {
     console.error("Function Error:", error)

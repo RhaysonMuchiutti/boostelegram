@@ -38,7 +38,6 @@ import * as XLSX from "xlsx";
 const ListVirtual = (ReactWindow as any).VariableSizeList;
 const AutoSizerComponent = AutoSizer as any;
 
-
 export const TelegramInterface = () => {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
@@ -55,6 +54,10 @@ export const TelegramInterface = () => {
   const [participants, setParticipants] = useState<any[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isImportOpen, setIsParticipantsImportOpen] = useState(false);
+  const [importList, setImportList] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [myGroups, setMyGroups] = useState<any[]>([]);
 
   const listRef = useRef<any>(null);
   const rowHeights = useRef<{[key: number]: number}>({});
@@ -97,6 +100,7 @@ export const TelegramInterface = () => {
       
       if (status === "connected" && credentials) {
         fetchChats(credentials);
+        fetchMyGroups(credentials);
       }
     } catch (err) {
       console.error("Erro ao inicializar:", err);
@@ -118,6 +122,48 @@ export const TelegramInterface = () => {
       if (!error && data?.chats) setChats(data.chats);
     } catch (err) {
       console.error("Erro ao buscar chats:", err);
+    }
+  };
+
+  const fetchMyGroups = async (credentials: any) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { action: "get-my-groups", apiId: credentials.api_id, apiHash: credentials.api_hash }
+      });
+      if (!error && data?.groups) setMyGroups(data.groups);
+    } catch (err) {
+      console.error("Erro ao buscar meus grupos:", err);
+    }
+  };
+
+  const handleImportMembers = async (groupId: string) => {
+    if (!importList.trim() || !creds) return;
+    setIsImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "add-members", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupId,
+          participantsList: importList
+        }
+      });
+      
+      if (!error && data?.results) {
+        const added = data.results.filter((r: any) => r.status === 'added').length;
+        const errors = data.results.filter((r: any) => r.status === 'error').length;
+        toast.success(`Processo finalizado: ${added} membros adicionados.`);
+        if (errors > 0) toast.error(`${errors} membros falharam.`);
+        setImportList("");
+        setIsParticipantsImportOpen(false);
+        fetchParticipants(groupId);
+      }
+    } catch (err) {
+      console.error("Erro ao importar membros:", err);
+      toast.error("Falha na importação.");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -197,8 +243,6 @@ export const TelegramInterface = () => {
           });
           
           if (listRef.current) {
-             // In virtualized list, we check offset instead of DOM scroll
-             // But for simplicity let's just scroll if they were roughly at the end
              listRef.current.scrollToItem(messages.length + onlyNew.length - 1, "end");
           }
         }
@@ -207,13 +251,6 @@ export const TelegramInterface = () => {
       console.error("Erro no polling de mensagens:", err);
     }
   };
-
-  useEffect(() => {
-    if (isLoadingMore === false && lastScrollHeight.current > 0 && scrollRef.current) {
-      // In virtualized list, we handle scroll restoration differently, 
-      // but VariableSizeList handles some of this if we maintain the index.
-    }
-  }, [messages, isLoadingMore]);
 
   useEffect(() => {
     if (selectedChat) {
@@ -283,7 +320,7 @@ export const TelegramInterface = () => {
 
     useEffect(() => {
       if (rowRef.current) {
-        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 24); // 24 for gap
+        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 24);
       }
     }, [msg.text]);
 
@@ -471,27 +508,6 @@ export const TelegramInterface = () => {
                             size="sm"
                             className="h-8 text-[10px] font-bold"
                             onClick={() => {
-                              const header = "ID;Nome;Username;Telefone;Bot\n";
-                              const rows = participants.map(p => 
-                                `${p.id};${p.firstName || ""} ${p.lastName || ""};${p.username || ""};${p.phone || ""};${p.isBot ? "Sim" : "Não"}`
-                              ).join("\n");
-                              const blob = new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8;" });
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `membros_${currentChat?.name || "grupo"}.csv`;
-                              a.click();
-                              toast.success("CSV exportado com sucesso!");
-                            }}
-                          >
-                            <FileSpreadsheet className="w-3 h-3 mr-1 text-emerald-500" />
-                            CSV
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-[10px] font-bold"
-                            onClick={() => {
                               const wsData = participants.map(p => ({
                                 "ID": p.id,
                                 "Nome": `${p.firstName || ""} ${p.lastName || ""}`.trim(),
@@ -499,21 +515,9 @@ export const TelegramInterface = () => {
                                 "Telefone": p.phone || "",
                                 "É Bot?": p.isBot ? "Sim" : "Não"
                               }));
-                              
                               const ws = XLSX.utils.json_to_sheet(wsData);
                               const wb = XLSX.utils.book_new();
                               XLSX.utils.book_append_sheet(wb, ws, "Membros");
-                              
-                              // Auto-size columns
-                              const colWidths = [
-                                { wch: 15 }, // ID
-                                { wch: 30 }, // Nome
-                                { wch: 20 }, // Username
-                                { wch: 20 }, // Telefone
-                                { wch: 10 }, // Bot
-                              ];
-                              ws['!cols'] = colWidths;
-
                               XLSX.writeFile(wb, `membros_${currentChat?.name || "grupo"}.xlsx`);
                               toast.success("Excel exportado com sucesso!");
                             }}
@@ -521,11 +525,9 @@ export const TelegramInterface = () => {
                             <TableIcon className="w-3 h-3 mr-1 text-blue-500" />
                             XLSX
                           </Button>
-
                         </div>
                       )}
                     </DialogHeader>
-
                     <ScrollArea className="max-h-[400px] mt-4">
                       {isLoadingParticipants ? (
                         <div className="flex justify-center py-8">
@@ -555,6 +557,45 @@ export const TelegramInterface = () => {
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>
+                <Dialog open={isImportOpen} onOpenChange={setIsParticipantsImportOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={cn(
+                        "h-9 w-9 text-slate-400 hover:text-primary",
+                        !myGroups.some(g => g.id === currentChat?.id) && "hidden"
+                      )}
+                      title="Importar Membros"
+                    >
+                      <Download className="w-5 h-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Importar Membros</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-slate-500">Lista de Usuários</label>
+                        <textarea
+                          className="w-full h-32 bg-slate-50 dark:bg-slate-800 border-none rounded-xl p-3 text-sm focus:ring-2 ring-primary transition-all resize-none"
+                          placeholder="Cole usernames ou IDs (um por linha, ou separados por vírgula)"
+                          value={importList}
+                          onChange={(e) => setImportList(e.target.value)}
+                        />
+                        <p className="text-[10px] text-slate-400 italic">Ex: @usuario1, @usuario2, 123456789</p>
+                      </div>
+                      <Button 
+                        className="w-full h-12 rounded-xl font-bold"
+                        disabled={isImporting || !importList.trim()}
+                        onClick={() => currentChat && handleImportMembers(currentChat.id)}
+                      >
+                        {isImporting ? "Importando..." : "Concluir Importação"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <MoreVertical className="w-5 h-5 cursor-pointer hover:text-slate-600" />
               </div>
             </header>
@@ -562,14 +603,13 @@ export const TelegramInterface = () => {
             <div className="flex-1 bg-slate-50/30 dark:bg-slate-900/50">
               <AutoSizerComponent>
                 {({ height, width }: any) => (
-
                   <ListVirtual
                     ref={listRef}
                     height={height}
                     width={width}
                     itemCount={messages.length}
                     itemSize={getRowHeight}
-                    onScroll={({ scrollOffset, scrollDirection }) => {
+                    onScroll={({ scrollOffset, scrollDirection }: any) => {
                       if (scrollDirection === "backward" && scrollOffset < 50 && !isLoadingMore && hasMore && selectedChat) {
                         fetchMessages(selectedChat, true);
                       }
