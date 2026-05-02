@@ -343,7 +343,52 @@ export const TelegramInterface = () => {
                 <Phone className="w-5 h-5 cursor-pointer hover:text-slate-600" />
                 <Video className="w-5 h-5 cursor-pointer hover:text-slate-600" />
                 <div className="w-px h-6 bg-slate-100 dark:bg-slate-800" />
+                <Dialog open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 text-slate-400 hover:text-primary"
+                      onClick={() => currentChat && fetchParticipants(currentChat.id)}
+                    >
+                      <List className="w-5 h-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Membros do Grupo</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[400px] mt-4">
+                      {isLoadingParticipants ? (
+                        <div className="flex justify-center py-8">
+                          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pr-4">
+                          {participants.map((p) => (
+                            <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 font-bold shrink-0">
+                                {p.firstName?.[0] || "?"}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">
+                                  {p.firstName} {p.lastName} {p.isBot && <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded ml-1">BOT</span>}
+                                </p>
+                                {p.username && <p className="text-xs text-slate-400 truncate">@{p.username}</p>}
+                              </div>
+                              {p.phone && <p className="text-[10px] text-slate-400">{p.phone}</p>}
+                            </div>
+                          ))}
+                          {participants.length === 0 && (
+                            <p className="text-center text-slate-400 py-8 italic text-sm">Nenhum membro encontrado</p>
+                          )}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
                 <MoreVertical className="w-5 h-5 cursor-pointer hover:text-slate-600" />
+
               </div>
             </header>
 
