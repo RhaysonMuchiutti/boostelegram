@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import QRCode from "react-qr-code";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+const QRCode = lazy(() => import("react-qr-code"));
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen } from "lucide-react";
