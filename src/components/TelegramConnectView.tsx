@@ -13,7 +13,7 @@ export const TelegramConnectView = () => {
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [telegramUser, setTelegramUser] = useState<string | null>(null);
-  const pollingRef = useRef<number | null>(null);
+  const realtimeChannelRef = useRef<any>(null);
 
   useEffect(() => {
     const loadData = async () => {
