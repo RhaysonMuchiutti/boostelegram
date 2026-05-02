@@ -487,6 +487,41 @@ export const TelegramInterface = () => {
                             <FileSpreadsheet className="w-3 h-3 mr-1 text-emerald-500" />
                             CSV
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[10px] font-bold"
+                            onClick={() => {
+                              const wsData = participants.map(p => ({
+                                "ID": p.id,
+                                "Nome": `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+                                "Username": p.username ? `@${p.username}` : "",
+                                "Telefone": p.phone || "",
+                                "É Bot?": p.isBot ? "Sim" : "Não"
+                              }));
+                              
+                              const ws = XLSX.utils.json_to_sheet(wsData);
+                              const wb = XLSX.utils.book_new();
+                              XLSX.utils.book_append_sheet(wb, ws, "Membros");
+                              
+                              // Auto-size columns
+                              const colWidths = [
+                                { wch: 15 }, // ID
+                                { wch: 30 }, // Nome
+                                { wch: 20 }, // Username
+                                { wch: 20 }, // Telefone
+                                { wch: 10 }, // Bot
+                              ];
+                              ws['!cols'] = colWidths;
+
+                              XLSX.writeFile(wb, `membros_${currentChat?.name || "grupo"}.xlsx`);
+                              toast.success("Excel exportado com sucesso!");
+                            }}
+                          >
+                            <TableIcon className="w-3 h-3 mr-1 text-blue-500" />
+                            XLSX
+                          </Button>
+
                         </div>
                       )}
                     </DialogHeader>
