@@ -4,6 +4,8 @@ import { DashboardView } from "@/components/DashboardView";
 import { CampaignForm } from "@/components/CampaignForm";
 import { PrivacySettingsView } from "@/components/PrivacySettingsView";
 import { BotFlowDesign } from "@/components/BotFlowDesign";
+import { TelegramConnectView } from "@/components/TelegramConnectView";
+import { TelegramInterface } from "@/components/TelegramInterface";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -12,9 +14,14 @@ const Index = () => {
     <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === "dashboard" && <DashboardView />}
       {activeTab === "campaigns" && <CampaignForm />}
-      {activeTab === "messages" && <BotFlowDesign />}
+      {activeTab === "leads" && <TelegramConnectView />}
+      {activeTab === "messages" && <TelegramInterface />}
       {activeTab === "settings" && <PrivacySettingsView />}
-      {activeTab !== "dashboard" && activeTab !== "campaigns" && activeTab !== "settings" && (
+      
+      {/* Bot Flow visualization stays available if needed via developer tools or a specific hidden route */}
+      {activeTab === "bot-flow" && <BotFlowDesign />}
+
+      {activeTab !== "dashboard" && activeTab !== "campaigns" && activeTab !== "leads" && activeTab !== "messages" && activeTab !== "settings" && (
         <div className="flex items-center justify-center h-[400px] text-muted-foreground border-2 border-dashed rounded-xl">
           Funcionalidade de {activeTab} em desenvolvimento...
         </div>
