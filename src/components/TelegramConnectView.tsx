@@ -87,7 +87,7 @@ export const TelegramConnectView = () => {
       try {
         const { data, error } = await supabase
           .from("telegram_connections")
-          .select("status")
+          .select("status, updated_at")
           .eq("id", connectionId)
           .maybeSingle();
 
@@ -101,8 +101,14 @@ export const TelegramConnectView = () => {
         if (data && data.status === "connected") {
           console.log("Conexão detectada! Parando polling.");
           if (pollingRef.current) clearInterval(pollingRef.current);
+          
+          // Buscar o nome do usuário que acabou de conectar (se disponível)
+          // Em uma implementação futura, poderíamos salvar o username no banco
           setStep("connected");
-          toast.success("Telegram conectado com sucesso!");
+          toast.success("Telegram conectado com sucesso!", {
+            description: "Sua conta agora está ativa no sistema.",
+            duration: 5000,
+          });
         }
       } catch (err) {
         console.error("Polling error:", err);
