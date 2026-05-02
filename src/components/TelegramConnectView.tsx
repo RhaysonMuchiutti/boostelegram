@@ -39,7 +39,7 @@ export const TelegramConnectView = () => {
         // 2. Carregar status da conexão
         const { data: conn } = await supabase
           .from("telegram_connections")
-          .select("id, status")
+          .select("id, status, telegram_username")
           .eq("user_id", user.id)
           .maybeSingle();
 
