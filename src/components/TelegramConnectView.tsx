@@ -81,42 +81,43 @@ export const TelegramConnectView = () => {
   }, []);
 
   const startPollingStatus = (connectionId: string) => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
+    // We now use Realtime instead of polling for a better experience
+    console.log("Iniciando monitoramento em tempo real da conexão:", connectionId);
     
-    console.log("Iniciando monitoramento da conexão:", connectionId);
-    
-    pollingRef.current = window.setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from("telegram_connections")
-          .select("status, telegram_username")
-          .eq("id", connectionId)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Erro ao buscar status:", error);
-          return;
-        }
-
-        console.log("Status atual da conexão:", data?.status);
-
-        if (data && data.status === "connected") {
-          console.log("Conexão detectada! Parando polling.");
-          if (pollingRef.current) clearInterval(pollingRef.current);
+    const channel = supabase
+      .channel(`conn-${connectionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'telegram_connections',
+          filter: `id=eq.${connectionId}`,
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          console.log("Mudança de status detectada via Realtime:", newData.status);
           
-          const username = data.telegram_username || "Usuário";
-          setTelegramUser(username);
-          setStep("connected");
-          
-          toast.success(`Conectado como ${username}!`, {
-            description: "Sua conta do Telegram foi vinculada com sucesso.",
-            duration: 6000,
-          });
+          if (newData.status === 'connected') {
+            const username = newData.telegram_username || "Usuário";
+            setTelegramUser(username);
+            setStep("connected");
+            
+            toast.success(`Conectado como ${username}!`, {
+              description: "Sua conta do Telegram foi vinculada com sucesso via Realtime.",
+              duration: 6000,
+            });
+            
+            supabase.removeChannel(channel);
+          }
         }
-      } catch (err) {
-        console.error("Polling error:", err);
-      }
-    }, 2000);
+      )
+      .subscribe();
+
+    // Cleanup channel on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   };
 
   const handleStartConnection = async () => {
