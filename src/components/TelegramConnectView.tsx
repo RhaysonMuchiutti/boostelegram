@@ -15,6 +15,29 @@ export const TelegramConnectView = () => {
   const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Carregar credenciais salvas ao iniciar
+    const loadCredentials = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("telegram_credentials")
+        .select("api_id, api_hash")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data && !error) {
+        setApiCredentials({
+          appId: data.api_id,
+          apiHash: data.api_hash
+        });
+      }
+    };
+
+    loadCredentials();
+  }, []);
+
+  useEffect(() => {
     let timer: NodeJS.Timeout;
     if (step === "qr" && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
@@ -61,6 +84,20 @@ export const TelegramConnectView = () => {
     setStep("loading");
     
     try {
+      // Salvar ou atualizar as credenciais no banco de dados
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("telegram_credentials")
+          .upsert({
+            user_id: user.id,
+            api_id: apiCredentials.appId,
+            api_hash: apiCredentials.apiHash
+          }, { onConflict: 'user_id' });
+        
+        toast.success("Credenciais salvas com sucesso!");
+      }
+
       // Chamada para a Edge Function que vamos criar
       // Esta função vai iniciar o processo no backend seguro
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
