@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      connection_audit_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          reason: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          reason?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          reason?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       telegram_connections: {
         Row: {
           created_at: string
