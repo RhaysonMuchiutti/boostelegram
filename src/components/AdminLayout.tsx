@@ -76,7 +76,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       {/* Mobile Menu Trigger */}
       <Button
         variant="outline"
@@ -234,7 +234,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-md border-bottom border-border dark:bg-slate-900/80">
           <h2 className="text-lg font-semibold capitalize">
             {activeTab}
@@ -246,7 +246,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             <div className="w-8 h-8 rounded-full bg-slate-200" />
           </div>
         </header>
-        <div className="p-6">
+        <div className="flex-1 p-6 min-h-0">
           {children}
         </div>
       </main>

@@ -417,7 +417,7 @@ export const TelegramInterface = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
+    <div className="flex h-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative">
       {connectionStatus !== "connected" && !isLoading && (
         <div className="absolute inset-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
           <div className={cn(
