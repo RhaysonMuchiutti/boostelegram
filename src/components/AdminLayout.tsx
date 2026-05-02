@@ -234,7 +234,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white/80 backdrop-blur-md border-bottom border-border dark:bg-slate-900/80">
           <h2 className="text-lg font-semibold capitalize">
             {activeTab}
