@@ -19,8 +19,9 @@ const Index = () => {
       {activeTab === "leads" && <TelegramConnectView />}
       {activeTab === "messages" && <TelegramInterface />}
       {activeTab === "automation" && <AutomationRulesView />}
-      {activeTab === "settings" && <PrivacySettingsView />}
-      {activeTab === "bot-flow" && <BotFlowDesign />}
+          {activeTab === "settings" && <PrivacySettingsView />}
+          {activeTab === "telegram-api" && <TelegramSettingsView />}
+          {activeTab === "bot-flow" && <BotFlowDesign />}
     </AdminLayout>
   );
 };
