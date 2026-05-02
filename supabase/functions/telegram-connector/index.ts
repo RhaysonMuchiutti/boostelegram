@@ -34,7 +34,8 @@ serve(async (req) => {
         connectionRetries: 5,
         deviceModel: "GrupoBoost Web",
         systemVersion: "1.0.0",
-        appVersion: "1.0.0"
+        appVersion: "1.0.0",
+        useWSS: false // Help with stability in Edge runtime
       })
 
       try {
