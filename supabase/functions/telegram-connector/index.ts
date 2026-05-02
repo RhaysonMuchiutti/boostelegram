@@ -293,7 +293,7 @@ serve(async (req) => {
     }
 
     if (action === 'get-messages') {
-      const { chatId, limit = 30 } = await req.json();
+      const msgLimit = limit || 30;
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
@@ -326,7 +326,7 @@ serve(async (req) => {
     }
 
     if (action === 'send-message') {
-      const { chatId, message } = await req.json();
+      // chatId and message already destructured from body
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
