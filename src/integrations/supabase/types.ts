@@ -20,6 +20,7 @@ export type Database = {
           id: string
           session_string: string | null
           status: string
+          telegram_username: string | null
           updated_at: string
           user_id: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           session_string?: string | null
           status?: string
+          telegram_username?: string | null
           updated_at?: string
           user_id: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           id?: string
           session_string?: string | null
           status?: string
+          telegram_username?: string | null
           updated_at?: string
           user_id?: string
         }
