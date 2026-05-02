@@ -169,6 +169,13 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
               collapsed={isCollapsed}
               onClick={() => setActiveTab("settings")}
             />
+            <SidebarItem 
+              icon={Key} 
+              label="Telegram API" 
+              active={activeTab === "telegram-api"}
+              collapsed={isCollapsed}
+              onClick={() => setActiveTab("telegram-api")}
+            />
           </nav>
 
           <div className="pt-4 space-y-2 mt-auto border-t border-border">
