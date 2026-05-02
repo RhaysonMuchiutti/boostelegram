@@ -279,27 +279,41 @@ export const TelegramConnectView = () => {
           )}
 
           {step === "qr" && (
-            <div className="flex flex-col items-center py-4 space-y-6 animate-in zoom-in-95">
+            <div className="flex flex-col items-center py-4 space-y-6 animate-in zoom-in-95" role="region" aria-label="Área de autenticação via QR Code">
               <div className="p-6 bg-white rounded-[2.5rem] shadow-xl border border-slate-100 relative group">
-                <div className="p-2">
-                  <QRCode value={qrString} size={200} level="M" />
+                <div className="p-2 bg-white rounded-xl">
+                  <QRCode 
+                    value={qrString} 
+                    size={200} 
+                    level="M" 
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                    aria-label="Código QR para autenticação no Telegram"
+                  />
                 </div>
                 {elapsed > 45 && (
-                  <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center p-6 text-center rounded-[2.5rem] backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center p-6 text-center rounded-[2.5rem] backdrop-blur-sm animate-in fade-in duration-300">
                     <AlertCircle className="w-10 h-10 text-amber-500 mb-2" />
-                    <p className="text-xs font-bold text-slate-800">Tempo de espera longo</p>
-                    <p className="text-[10px] text-slate-500 mb-4">A conexão parece estar demorando. Sugerimos reiniciar.</p>
-                    <Button size="sm" variant="outline" onClick={handleStartConnection} className="rounded-full h-8 px-4">Reiniciar</Button>
+                    <p className="text-xs font-bold text-slate-800">Conexão demorada</p>
+                    <p className="text-[10px] text-slate-500 mb-4">O tempo expirou ou houve uma falha na rede.</p>
+                    <Button 
+                      size="sm" 
+                      variant="default" 
+                      onClick={handleStartConnection} 
+                      className="rounded-full h-9 px-6 shadow-lg shadow-primary/20"
+                      aria-label="Gerar novo código QR"
+                    >
+                      Tentar Novamente
+                    </Button>
                   </div>
                 )}
               </div>
 
-              <div className="text-center space-y-4 max-w-sm">
+              <div className="text-center space-y-4 max-w-sm w-full">
                 <div className="space-y-1">
                   <p className="font-bold text-xl">2. Escaneie Agora</p>
-                  <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg flex items-center justify-center gap-2">
-                    <Smartphone className="w-3 h-3" />
-                    Configurações {">"} Dispositivos {">"} Conectar
+                  <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center justify-center gap-2">
+                    <Smartphone className="w-4 h-4 text-primary" />
+                    <span>Configurações ➔ Dispositivos ➔ Conectar</span>
                   </div>
                 </div>
                 
