@@ -13,6 +13,8 @@ export const TelegramConnectView = () => {
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [telegramUser, setTelegramUser] = useState<string | null>(null);
+  const [isVerifyingExtra, setIsVerifyingExtra] = useState(false);
+  const [currentConnId, setCurrentConnId] = useState<string | null>(null);
   const realtimeChannelRef = useRef<any>(null);
 
   useEffect(() => {
@@ -47,9 +49,6 @@ export const TelegramConnectView = () => {
           if (conn.status === "connected") {
             setStep("connected");
             setTelegramUser(conn.telegram_username);
-          } else if (conn.status === "pending_qr") {
-            // Se estiver pendente, tentamos reiniciar para pegar um QR novo
-            // ou apenas deixamos o usuário iniciar manualmente
           }
         }
       } catch (err) {
@@ -68,12 +67,11 @@ export const TelegramConnectView = () => {
       timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     }
     if (timeLeft === 0 && step === "qr") {
-      handleStartConnection(); // Refresh QR code when expired
+      handleStartConnection(); 
     }
     return () => clearInterval(timer);
   }, [step, timeLeft]);
 
-  // Limpa o canal de realtime ao desmontar ou mudar de passo
   useEffect(() => {
     return () => {
       if (realtimeChannelRef.current) {
@@ -82,12 +80,53 @@ export const TelegramConnectView = () => {
     };
   }, []);
 
+  const verifyConnectionStatus = async (connectionId: string) => {
+    setIsVerifyingExtra(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const { data, error } = await supabase
+        .from("telegram_connections")
+        .select("status, telegram_username")
+        .eq("id", connectionId)
+        .single();
+
+      if (error) throw error;
+
+      if (data && data.status === "connected") {
+        const username = data.telegram_username || "Usuário";
+        setTelegramUser(username);
+        setStep("connected");
+        
+        toast.success("Conexão confirmada!", {
+          description: `Bem-vindo, ${username}. Sua conta foi vinculada com sucesso.`,
+          duration: 5000,
+        });
+        
+        if (realtimeChannelRef.current) {
+          supabase.removeChannel(realtimeChannelRef.current);
+          realtimeChannelRef.current = null;
+        }
+        return true;
+      } else {
+        toast.info("Aguardando confirmação...", {
+          description: "Certifique-se de que autorizou o dispositivo no seu celular."
+        });
+        return false;
+      }
+    } catch (err) {
+      console.error("Erro na verificação:", err);
+      toast.error("Erro ao validar conexão.");
+      return false;
+    } finally {
+      setIsVerifyingExtra(false);
+    }
+  };
+
   const startRealtimeStatus = (connectionId: string) => {
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
     }
-    
-    console.log("Iniciando monitoramento em tempo real da conexão:", connectionId);
     
     const channel = supabase
       .channel(`conn-${connectionId}`)
@@ -99,24 +138,10 @@ export const TelegramConnectView = () => {
           table: 'telegram_connections',
           filter: `id=eq.${connectionId}`,
         },
-        (payload) => {
+        async (payload) => {
           const newData = payload.new as any;
-          console.log("Mudança de status detectada via Realtime:", newData.status);
-          
           if (newData.status === 'connected') {
-            const username = newData.telegram_username || "Usuário";
-            setTelegramUser(username);
-            setStep("connected");
-            
-            toast.success(`Conectado como ${username}!`, {
-              description: "Sua conta do Telegram foi vinculada com sucesso em tempo real.",
-              duration: 6000,
-            });
-            
-            if (realtimeChannelRef.current) {
-              supabase.removeChannel(realtimeChannelRef.current);
-              realtimeChannelRef.current = null;
-            }
+            await verifyConnectionStatus(connectionId);
           }
         }
       )
@@ -130,7 +155,6 @@ export const TelegramConnectView = () => {
     setStep("loading");
     
     try {
-      // Salvar ou atualizar as credenciais no banco de dados
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
@@ -140,12 +164,8 @@ export const TelegramConnectView = () => {
             api_id: apiCredentials.appId,
             api_hash: apiCredentials.apiHash
           }, { onConflict: 'user_id' });
-        
-        toast.success("Credenciais salvas com sucesso!");
       }
 
-      // Chamada para a Edge Function que vamos criar
-      // Esta função vai iniciar o processo no backend seguro
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "start-qr",
@@ -161,6 +181,7 @@ export const TelegramConnectView = () => {
         setStep("qr");
         setTimeLeft(60);
         if (data.connection_id) {
+          setCurrentConnId(data.connection_id);
           startRealtimeStatus(data.connection_id);
         }
       } else {
@@ -169,7 +190,7 @@ export const TelegramConnectView = () => {
     } catch (err: any) {
       console.error("Connection error:", err);
       setStep("credentials");
-      toast.error(err.message || "Erro ao conectar com o servidor do Telegram.");
+      toast.error(err.message || "Erro ao conectar.");
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +209,20 @@ export const TelegramConnectView = () => {
       </div>
 
       <Card className="border-2 shadow-xl overflow-hidden bg-white dark:bg-slate-900">
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 relative">
+          {isVerifyingExtra && (
+            <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-300">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <ShieldCheck className="w-6 h-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="font-bold text-xl text-slate-900 dark:text-white">Confirmando Conexão</p>
+                <p className="text-sm text-muted-foreground">Sincronizando sua sessão com o banco de dados...</p>
+              </div>
+            </div>
+          )}
+
           {step === "intro" && (
             <div className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
@@ -212,7 +246,7 @@ export const TelegramConnectView = () => {
                 <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-amber-800">
                   <p className="font-bold mb-1">Aviso de Segurança</p>
-                  <p>As chaves de API são armazenadas de forma criptografada apenas para manter sua automação rodando.</p>
+                  <p>As chaves de API são armazenadas de forma segura para manter sua automação rodando.</p>
                 </div>
               </div>
 
@@ -262,10 +296,10 @@ export const TelegramConnectView = () => {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Conectando ao Servidor...
+                    Iniciando...
                   </>
                 ) : (
-                  "Gerar QR Code Real"
+                  "Gerar QR Code"
                 )}
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => setStep("intro")} disabled={isLoading}>Voltar</Button>
@@ -281,7 +315,7 @@ export const TelegramConnectView = () => {
               <div className="text-center space-y-2">
                 <p className="font-bold text-xl">Iniciando Ponte Segura</p>
                 <p className="text-sm text-muted-foreground max-w-xs">
-                  Estamos preparando um ambiente isolado para sua conta no Supabase.
+                  Preparando ambiente isolado no servidor.
                 </p>
               </div>
             </div>
@@ -305,15 +339,28 @@ export const TelegramConnectView = () => {
 
               <div className="text-center space-y-4 max-w-sm">
                 <div className="space-y-2">
-                  <p className="font-bold text-2xl">Escaneie o Código Real</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    No Telegram: <b>Configurações</b> {">"} <b>Dispositivos</b> {">"} <b>Conectar Dispositivo</b>
+                  <p className="font-bold text-2xl">Escaneie o Código</p>
+                  <p className="text-sm text-muted-foreground">
+                    No Telegram: <b>Configurações</b> {" > "} <b>Dispositivos</b> {" > "} <b>Conectar</b>
                   </p>
                 </div>
                 
-                <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-slate-100 text-sm font-bold text-slate-700">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  Expira em: <span className="text-primary">{timeLeft}s</span>
+                <div className="flex flex-col gap-4 items-center w-full">
+                  <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    Expira em: <span className="text-primary">{timeLeft}s</span>
+                  </div>
+
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    onClick={() => currentConnId && verifyConnectionStatus(currentConnId)}
+                    disabled={isVerifyingExtra}
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-2 ${isVerifyingExtra ? "animate-spin" : ""}`} />
+                    {isVerifyingExtra ? "Confirmando..." : "Já escaneou? Clique para confirmar"}
+                  </Button>
                 </div>
 
                 <p className="text-xs text-slate-400 italic">
@@ -331,7 +378,7 @@ export const TelegramConnectView = () => {
               <div className="text-center space-y-2">
                 <h3 className="text-3xl font-bold text-slate-900">Conta Conectada!</h3>
                 <p className="text-emerald-600 font-medium text-lg">Olá, {telegramUser || "Usuário"}!</p>
-                <p className="text-muted-foreground">Seu Telegram agora está integrado ao servidor do GrupoBoost.</p>
+                <p className="text-muted-foreground">Seu Telegram agora está integrado ao servidor.</p>
               </div>
               <Button className="h-12 px-8 rounded-full" onClick={() => setStep("intro")}>
                 Desconectar e Configurar Novo
