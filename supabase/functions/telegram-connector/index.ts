@@ -368,10 +368,12 @@ serve(async (req) => {
 
       try {
         await client.connect();
+        console.log(`Fetching participants for chat: ${chatId}`);
         const participants = await Promise.race([
-          client.getParticipants(chatId, { limit: 200 }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching participants')), 60000))
+          client.getParticipants(chatId, { limit: 500, aggressive: true }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching participants')), 80000))
         ]) as any[];
+        console.log(`Found ${participants.length} participants`);
         const result = participants.map((p: any) => ({
           id: p.id.toString(),
           username: p.username,
