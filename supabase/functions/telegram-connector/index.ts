@@ -37,6 +37,7 @@ serve(async (req) => {
         appVersion: "1.0.0",
         useWSS: false,
         autoReconnect: true,
+        dcId: 1, // Start with DC1 to avoid some initial DC migrations
       })
 
       try {
