@@ -136,14 +136,35 @@ export const TelegramConnectView = () => {
         if (data.status === "connected") {
           setStep("connected");
           setTelegramUser(data.username || "Usuário");
+          
+          // Ensure DB is in sync if server says we are connected
+          await supabase
+            .from("telegram_connections")
+            .update({ status: 'connected', telegram_username: data.username })
+            .eq("user_id", user.id)
+            .neq("status", "connected");
         } else {
-          setStep("intro");
+          // If server says disconnected but we thought we were connected
+          if (step === "connected") {
+            setStep("intro");
+            toast.error("Sessão expirada. Por favor, conecte novamente.");
+          }
         }
       }
     } catch (err) {
       console.error("Erro ao verificar status no servidor:", err);
     }
   };
+
+  // Add periodic sync every 5 minutes if on page
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (step === "connected") {
+        checkServerStatus();
+      }
+    }, 300000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [step]);
 
   const startRealtimeStatus = (connectionId: string) => {
     if (realtimeChannelRef.current) supabase.removeChannel(realtimeChannelRef.current);
