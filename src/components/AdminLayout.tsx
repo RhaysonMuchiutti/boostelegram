@@ -112,7 +112,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="hidden lg:flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200" 
+                  className="flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 shadow-sm" 
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsCollapsed(!isCollapsed);
@@ -165,7 +165,18 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             />
           </nav>
 
-          <div className="pt-6 mt-6 border-t border-border">
+          <div className="pt-4 space-y-2 mt-auto border-t border-border">
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className={cn(
+                "flex items-center w-full gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                isCollapsed && "px-3 justify-center"
+              )}
+              title={isCollapsed ? "Expandir" : "Recolher"}
+            >
+              {isCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+              {!isCollapsed && <span>Recolher Menu</span>}
+            </button>
             <SidebarItem icon={LogOut} label="Sair" collapsed={isCollapsed} />
           </div>
         </div>
