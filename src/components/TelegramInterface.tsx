@@ -600,7 +600,47 @@ export const TelegramInterface = () => {
                     </ScrollArea>
                   </DialogContent>
                 </Dialog>
+                <Dialog open={isImportOpen} onOpenChange={setIsParticipantsImportOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className={cn(
+                        "h-9 w-9 text-slate-400 hover:text-primary",
+                        !myGroups.some(g => g.id === currentChat?.id) && "hidden"
+                      )}
+                      title="Importar Membros"
+                    >
+                      <Download className="w-5 h-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Importar Membros</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-slate-500">Lista de Usuários</label>
+                        <textarea
+                          className="w-full h-32 bg-slate-50 dark:bg-slate-800 border-none rounded-xl p-3 text-sm focus:ring-2 ring-primary transition-all resize-none"
+                          placeholder="Cole usernames ou IDs (um por linha, ou separados por vírgula)"
+                          value={importList}
+                          onChange={(e) => setImportList(e.target.value)}
+                        />
+                        <p className="text-[10px] text-slate-400 italic">Ex: @usuario1, @usuario2, 123456789</p>
+                      </div>
+                      <Button 
+                        className="w-full h-12 rounded-xl font-bold"
+                        disabled={isImporting || !importList.trim()}
+                        onClick={() => currentChat && handleImportMembers(currentChat.id)}
+                      >
+                        {isImporting ? "Importando..." : "Concluir Importação"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <MoreVertical className="w-5 h-5 cursor-pointer hover:text-slate-600" />
+
               </div>
             </header>
 
