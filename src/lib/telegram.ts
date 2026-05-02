@@ -1,4 +1,5 @@
-import { TelegramClient } from "telegram";
+// @ts-ignore
+import { TelegramClient } from "telegram/browser";
 import { StringSession } from "telegram/sessions";
 import { Buffer } from "buffer";
 

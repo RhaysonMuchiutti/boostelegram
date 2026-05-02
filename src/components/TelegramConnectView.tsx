@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import QRCode from "react-qr-code";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+const QRCode = lazy(() => import("react-qr-code"));
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen } from "lucide-react";
@@ -176,12 +176,14 @@ export const TelegramConnectView = () => {
             <div className="flex flex-col items-center py-6 space-y-8 animate-in zoom-in-95">
               <div className="relative p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-100">
                 <div className="p-2">
-                  <QRCode 
-                    value={qrString} 
-                    size={220}
-                    level="M"
-                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                  />
+                  <Suspense fallback={<div className="w-[220px] h-[220px] bg-slate-100 animate-pulse rounded-lg" />}>
+                    <QRCode 
+                      value={qrString} 
+                      size={220}
+                      level="M"
+                      style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                    />
+                  </Suspense>
                 </div>
                 <div className="absolute -top-3 -right-3 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white shadow-lg">
                   <PanelLeftOpen className="w-6 h-6" />
