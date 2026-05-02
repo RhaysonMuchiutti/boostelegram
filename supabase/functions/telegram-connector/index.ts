@@ -111,19 +111,21 @@ serve(async (req) => {
         if (!conn) throw new Error("Falha ao registrar conexão")
 
         // Keep waiting for the scan in the background
-        // Use a self-invoking function that doesn't block the response
-        // Record the background scan process WITHOUT blocking the initial response
-        // This is key to ensure the QR code returns to the frontend immediately
         (async () => {
           try {
             console.log("Waiting for user to scan QR in background...");
-            // Use the signInPromise we started earlier
             await signInPromise;
             
             console.log("QR Scan successful!");
+
+            // Get user info to be sure we are logged in
+            const me = await client.getMe();
+            const username = (me as Api.User).username || (me as Api.User).firstName || "User";
+            console.log(`Logged in as: ${username}`);
+
             const sessionString = (client.session as any).save();
             
-            await supabaseClient
+            const { error: finalUpdateError } = await supabaseClient
               .from('telegram_connections')
               .update({ 
                 status: 'connected', 
@@ -131,6 +133,12 @@ serve(async (req) => {
                 updated_at: new Date().toISOString()
               })
               .eq('user_id', user.id);
+
+            if (finalUpdateError) {
+              console.error("Error saving final session:", finalUpdateError);
+            } else {
+              console.log("Session saved successfully to database");
+            }
           } catch (e) {
             console.error("Error during background scan:", e);
             await supabaseClient
@@ -138,6 +146,9 @@ serve(async (req) => {
               .update({ status: 'disconnected', updated_at: new Date().toISOString() })
               .eq('user_id', user.id);
           } finally {
+            await client.disconnect();
+          }
+        })();
             await client.disconnect();
           }
         })();
