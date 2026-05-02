@@ -46,8 +46,6 @@ export const TelegramInterface = () => {
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
 
-  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
 
 
   const init = async () => {
