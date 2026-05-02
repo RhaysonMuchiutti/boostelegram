@@ -3,11 +3,6 @@ import { TelegramClient } from "telegram/browser";
 import { StringSession } from "telegram/sessions";
 import { Buffer } from "buffer";
 
-// Garantir que Buffer esteja disponível globalmente para a biblioteca telegram
-if (typeof window !== "undefined" && !window.Buffer) {
-  window.Buffer = Buffer;
-}
-
 export interface TelegramConfig {
   apiId: number;
   apiHash: string;
