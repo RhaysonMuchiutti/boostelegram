@@ -9,7 +9,7 @@ import { Target, Link as LinkIcon, Palette, Bot } from "lucide-react";
 
 export const CampaignForm = () => {
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 h-full overflow-y-auto pr-2">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Criar Nova Campanha</h2>
         <Button>Salvar Campanha</Button>

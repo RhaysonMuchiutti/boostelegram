@@ -242,7 +242,7 @@ export const TelegramConnectView = () => {
   ];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 py-8 px-4">
+    <div className="max-w-2xl mx-auto space-y-6 py-8 px-4 h-full overflow-y-auto pr-2">
       <div className="text-center space-y-4 mb-8">
         <h2 className="text-3xl font-extrabold tracking-tight">Vincular Telegram</h2>
         
