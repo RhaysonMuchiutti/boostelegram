@@ -52,6 +52,15 @@ export const TelegramInterface = () => {
   }, []);
 
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Prevent body scroll when chat is active
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "pending_qr" | "disconnected" | "error">("disconnected");
   const [isLoading, setIsLoading] = useState(true);
   const [chats, setChats] = useState<any[]>([]);
@@ -427,6 +436,25 @@ export const TelegramInterface = () => {
 
   return (
     <div className="flex h-full w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden relative max-h-full min-h-0">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+      `}} />
+
       {connectionStatus !== "connected" && !isLoading && (
         <div className="absolute inset-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
           <div className={cn(
@@ -486,7 +514,7 @@ export const TelegramInterface = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {chats.map((chat) => (
             <div 
               key={chat.id} 
