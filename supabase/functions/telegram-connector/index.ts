@@ -111,34 +111,39 @@ serve(async (req) => {
 
         // Keep waiting for the scan in the background
         // Use a self-invoking function that doesn't block the response
-        (async () => {
-          try {
-            console.log("Waiting for user to scan QR...")
-            await signInPromise;
-            console.log("QR Scan successful!");
+        // Wait for the scan outcome explicitly in this request to avoid process termination
+        try {
+          console.log("Waiting for user to scan QR (Max 60s)...")
+          // Set a timeout for the sign-in promise
+          const result = await Promise.race([
+            signInPromise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000))
+          ]);
+          
+          console.log("QR Scan successful!");
+          const sessionString = (client.session as any).save();
+          
+          await supabaseClient
+            .from('telegram_connections')
+            .update({ 
+              status: 'connected', 
+              session_string: sessionString,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
             
-            const sessionString = (client.session as any).save();
-            
-            const { error: updateError } = await supabaseClient
-              .from('telegram_connections')
-              .update({ 
-                status: 'connected', 
-                session_string: sessionString,
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', user.id);
-              
-            if (updateError) console.error("Error updating session:", updateError)
-          } catch (e) {
-            console.error("Error during scan wait:", e);
+          await client.disconnect();
+        } catch (e) {
+          if (e.message !== "Timeout") {
+            console.error("Error during scan:", e);
             await supabaseClient
               .from('telegram_connections')
               .update({ status: 'disconnected', updated_at: new Date().toISOString() })
               .eq('user_id', user.id);
-          } finally {
-            await client.disconnect()
           }
-        })();
+          // If it's a timeout, we let it be handled by the next polling/request
+          await client.disconnect();
+        }
 
         // Convert the QR token to base64url correctly
         const tokenBytes = new Uint8Array(qrData.token);
