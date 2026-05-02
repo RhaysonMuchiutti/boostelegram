@@ -149,9 +149,6 @@ serve(async (req) => {
             await client.disconnect();
           }
         })();
-            await client.disconnect();
-          }
-        })();
 
         // Convert the QR token to base64url correctly
         const tokenBytes = new Uint8Array(qrData.token);
