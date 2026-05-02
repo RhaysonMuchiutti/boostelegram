@@ -308,7 +308,7 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const messages = await client.getMessages(chatId, { limit });
+        const messages = await client.getMessages(chatId, { limit: msgLimit });
         const result = messages.map(m => ({
           id: m.id,
           text: m.message,
