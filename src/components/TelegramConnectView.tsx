@@ -12,6 +12,7 @@ export const TelegramConnectView = () => {
   const [qrString, setQrString] = useState(""); 
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [telegramUser, setTelegramUser] = useState<string | null>(null);
   const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -38,13 +39,14 @@ export const TelegramConnectView = () => {
         // 2. Carregar status da conexão
         const { data: conn } = await supabase
           .from("telegram_connections")
-          .select("id, status")
+          .select("id, status, telegram_username")
           .eq("user_id", user.id)
           .maybeSingle();
 
         if (conn) {
           if (conn.status === "connected") {
             setStep("connected");
+            setTelegramUser(conn.telegram_username);
           } else if (conn.status === "pending_qr") {
             // Se estiver pendente, tentamos reiniciar para pegar um QR novo
             // ou apenas deixamos o usuário iniciar manualmente
@@ -87,7 +89,7 @@ export const TelegramConnectView = () => {
       try {
         const { data, error } = await supabase
           .from("telegram_connections")
-          .select("status")
+          .select("status, telegram_username")
           .eq("id", connectionId)
           .maybeSingle();
 
@@ -101,8 +103,15 @@ export const TelegramConnectView = () => {
         if (data && data.status === "connected") {
           console.log("Conexão detectada! Parando polling.");
           if (pollingRef.current) clearInterval(pollingRef.current);
+          
+          const username = data.telegram_username || "Usuário";
+          setTelegramUser(username);
           setStep("connected");
-          toast.success("Telegram conectado com sucesso!");
+          
+          toast.success(`Conectado como ${username}!`, {
+            description: "Sua conta do Telegram foi vinculada com sucesso.",
+            duration: 6000,
+          });
         }
       } catch (err) {
         console.error("Polling error:", err);
@@ -315,7 +324,8 @@ export const TelegramConnectView = () => {
               </div>
               <div className="text-center space-y-2">
                 <h3 className="text-3xl font-bold text-slate-900">Conta Conectada!</h3>
-                <p className="text-muted-foreground text-lg">Seu Telegram agora está integrado ao servidor do GrupoBoost.</p>
+                <p className="text-emerald-600 font-medium text-lg">Olá, {telegramUser || "Usuário"}!</p>
+                <p className="text-muted-foreground">Seu Telegram agora está integrado ao servidor do GrupoBoost.</p>
               </div>
               <Button className="h-12 px-8 rounded-full" onClick={() => setStep("intro")}>
                 Desconectar e Configurar Novo
