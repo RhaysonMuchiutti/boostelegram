@@ -390,9 +390,10 @@ export const TelegramInterface = () => {
 
     useEffect(() => {
       if (rowRef.current) {
-        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 24);
+        // Trigger height recalculation
+        setRowHeight(index, rowRef.current.getBoundingClientRect().height + 16);
       }
-    }, [msg.text]);
+    }, [msg.text, style.width]); // Re-run if width changes
 
     return (
       <div style={style}>
