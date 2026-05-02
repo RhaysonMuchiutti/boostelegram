@@ -76,7 +76,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden fixed inset-0">
       {/* Mobile Menu Trigger */}
       <Button
         variant="outline"
