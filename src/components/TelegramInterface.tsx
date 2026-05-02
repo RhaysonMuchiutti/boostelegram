@@ -27,7 +27,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { VariableSizeList as ListVirtual } from "react-window";
+import * as ReactWindow from "react-window";
+const ListVirtual = (ReactWindow as any).VariableSizeList;
+
 import { AutoSizer } from "react-virtualized-auto-sizer";
 
 
