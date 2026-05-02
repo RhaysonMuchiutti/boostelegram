@@ -15,26 +15,49 @@ export const TelegramConnectView = () => {
   const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // Carregar credenciais salvas ao iniciar
-    const loadCredentials = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      const { data, error } = await supabase
-        .from("telegram_credentials")
-        .select("api_id, api_hash")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        // 1. Carregar credenciais (API ID/Hash)
+        const { data: creds } = await supabase
+          .from("telegram_credentials")
+          .select("api_id, api_hash")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (data && !error) {
-        setApiCredentials({
-          appId: data.api_id,
-          apiHash: data.api_hash
-        });
+        if (creds) {
+          setApiCredentials({
+            appId: creds.api_id,
+            apiHash: creds.api_hash
+          });
+        }
+
+        // 2. Carregar status da conexão
+        const { data: conn } = await supabase
+          .from("telegram_connections")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (conn) {
+          if (conn.status === "connected") {
+            setStep("connected");
+          } else if (conn.status === "pending_qr") {
+            // Se estiver pendente, tentamos reiniciar para pegar um QR novo
+            // ou apenas deixamos o usuário iniciar manualmente
+          }
+        }
+      } catch (err) {
+        console.error("Error loading telegram data:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadCredentials();
+    loadData();
   }, []);
 
   useEffect(() => {
