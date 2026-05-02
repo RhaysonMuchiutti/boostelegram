@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-const QRCode = lazy(() => import("react-qr-code"));
+// Importar QRCode de forma estática para remover o lazy problemático
+import QRCode from "react-qr-code";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen } from "lucide-react";
-import { generateQrCode } from "@/lib/telegram";
+// Importar dinamicamente a lógica do Telegram apenas no momento do clique
+// Isso evita que o erro de carregamento aconteça na inicialização do app
 import { toast } from "sonner";
 import { Buffer } from "buffer";
 
