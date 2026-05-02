@@ -18,8 +18,10 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          last_error: string | null
           session_string: string | null
           status: string
+          step_logs: Json | null
           telegram_username: string | null
           updated_at: string
           user_id: string
@@ -27,8 +29,10 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          last_error?: string | null
           session_string?: string | null
           status?: string
+          step_logs?: Json | null
           telegram_username?: string | null
           updated_at?: string
           user_id: string
@@ -36,8 +40,10 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          last_error?: string | null
           session_string?: string | null
           status?: string
+          step_logs?: Json | null
           telegram_username?: string | null
           updated_at?: string
           user_id?: string
