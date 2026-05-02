@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
-// Importar QRCode de forma estática para remover o lazy problemático
+import { useState, useEffect, useRef } from "react";
 import QRCode from "react-qr-code";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Loader2, Smartphone, CheckCircle2, AlertCircle, PanelLeftOpen } from "lucide-react";
-// Importar dinamicamente a lógica do Telegram apenas no momento do clique
-// Isso evita que o erro de carregamento aconteça na inicialização do app
 import { toast } from "sonner";
 import { Buffer } from "buffer";
 
@@ -33,7 +30,7 @@ export const TelegramConnectView = () => {
     isConnecting.current = true;
 
     try {
-      // Importar dinamicamente a lógica do Telegram apenas aqui
+      // Import dinâmico da lógica pesada apenas no momento do clique
       const { generateQrCode } = await import("@/lib/telegram");
 
       await generateQrCode(
@@ -64,11 +61,11 @@ export const TelegramConnectView = () => {
         }
       );
     } catch (err) {
-      console.error("Dynamic import error:", err);
+      console.error("Critical error in Telegram logic:", err);
       setIsLoading(false);
       setStep("credentials");
       isConnecting.current = false;
-      toast.error("Erro ao carregar módulo do Telegram.");
+      toast.error("Erro ao carregar módulo do Telegram. Verifique se o navegador suporta MTProto.");
     }
   };
 
@@ -121,7 +118,7 @@ export const TelegramConnectView = () => {
               <div className="space-y-2">
                 <h4 className="font-bold text-xl">Passo 1: Credenciais</h4>
                 <p className="text-sm text-muted-foreground">
-                  Acesse <a href="https://my.telegram.org" target="_blank" rel="noreferrer" className="text-primary underline font-bold">my.telegram.org</a>, vá em "API development tools" e crie um app para obter seu ID e Hash.
+                  Acesse <a href="https://my.telegram.org" target="_blank" rel="noreferrer" className="text-primary underline font-bold">my.telegram.org</a>, vá em "API development tools".
                 </p>
               </div>
               
@@ -203,12 +200,6 @@ export const TelegramConnectView = () => {
                 <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-slate-100 text-sm font-medium text-slate-600">
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   Expira em: <span className="text-primary font-bold">{timeLeft}s</span>
-                </div>
-
-                <div className="pt-4">
-                  <Button variant="ghost" size="sm" className="text-xs text-slate-400" onClick={() => setTimeLeft(60)}>
-                    Problemas com o código? Tente gerar novamente.
-                  </Button>
                 </div>
               </div>
             </div>
