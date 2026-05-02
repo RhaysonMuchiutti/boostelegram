@@ -1,0 +1,1 @@
+ALTER FUNCTION public.sync_telegram_connection_status() SET search_path = public;
