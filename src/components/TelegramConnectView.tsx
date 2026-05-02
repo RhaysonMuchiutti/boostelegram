@@ -33,13 +33,15 @@ export const TelegramConnectView = () => {
     isConnecting.current = true;
 
     try {
+      // Importar dinamicamente a lógica do Telegram apenas aqui
+      const { generateQrCode } = await import("@/lib/telegram");
+
       await generateQrCode(
         { 
           apiId: parseInt(apiCredentials.appId), 
           apiHash: apiCredentials.apiHash 
         },
         (qr) => {
-          // O Telegram retorna o token em Buffer, precisamos converter para a URL que o app entende
           const base64Token = Buffer.from(qr.token).toString("base64url");
           const url = `tg://login?token=${base64Token}`;
           setQrString(url);
@@ -48,7 +50,6 @@ export const TelegramConnectView = () => {
           setTimeLeft(60);
         },
         (session) => {
-          console.log("Conectado com sucesso!");
           localStorage.setItem("tg_session", session);
           setStep("connected");
           isConnecting.current = false;
@@ -63,10 +64,11 @@ export const TelegramConnectView = () => {
         }
       );
     } catch (err) {
+      console.error("Dynamic import error:", err);
       setIsLoading(false);
       setStep("credentials");
       isConnecting.current = false;
-      toast.error("Erro inesperado ao iniciar conexão.");
+      toast.error("Erro ao carregar módulo do Telegram.");
     }
   };
 
