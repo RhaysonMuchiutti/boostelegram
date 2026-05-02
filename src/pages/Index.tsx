@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { DashboardView } from "@/components/DashboardView";
 import { CampaignForm } from "@/components/CampaignForm";
 import { PrivacySettingsView } from "@/components/PrivacySettingsView";
 import { BotFlowDesign } from "@/components/BotFlowDesign";
-import { TelegramConnectView } from "@/components/TelegramConnectView";
-import { TelegramInterface } from "@/components/TelegramInterface";
 import { AutomationRulesView } from "@/components/AutomationRulesView";
+
+// Carregamento preguiçoso para evitar que erros na biblioteca do Telegram quebrem o app todo
+const TelegramConnectView = lazy(() => import("@/components/TelegramConnectView").then(m => ({ default: m.TelegramConnectView })));
+const TelegramInterface = lazy(() => import("@/components/TelegramInterface").then(m => ({ default: m.TelegramInterface })));
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
