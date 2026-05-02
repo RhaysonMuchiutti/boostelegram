@@ -37,94 +37,100 @@ serve(async (req) => {
         appVersion: "1.0.0"
       })
 
-      await client.connect()
+      try {
+        await client.connect()
 
-      let qrData: any = null;
-      
-      const signInPromise = client.signInUserWithQrCode(
-        { apiId: parseInt(apiId), apiHash: apiHash },
-        {
-          qrCode: async (qr) => {
-            console.log("QR received from Telegram")
-            qrData = qr;
-          },
-          onError: async (err) => {
-            console.error("Telegram QR Error:", err);
-            return true;
+        let qrData: any = null;
+        
+        const signInPromise = client.signInUserWithQrCode(
+          { apiId: parseInt(apiId), apiHash: apiHash },
+          {
+            qrCode: async (qr) => {
+              console.log("QR received from Telegram")
+              qrData = qr;
+            },
+            onError: async (err) => {
+              console.error("Telegram QR Error:", err);
+              return true;
+            }
           }
+        )
+
+        // Wait for QR to be generated
+        let attempts = 0;
+        while (!qrData && attempts < 20) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          attempts++;
         }
-      )
 
-      // Wait for QR to be generated
-      let attempts = 0;
-      while (!qrData && attempts < 20) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-
-      if (!qrData) {
-        await client.disconnect()
-        throw new Error("Telegram demorou muito para gerar o QR Code. Tente novamente.")
-      }
-
-      // Record pending connection
-      const { data: conn, error: connError } = await supabaseClient
-        .from('telegram_connections')
-        .upsert({ 
-          user_id: user.id, 
-          status: 'pending_qr',
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (connError) throw connError
-
-      // Keep waiting for the scan in the background
-      const waitScan = (async () => {
-        try {
-          console.log("Waiting for user to scan QR...")
-          const userResult = await signInPromise;
-          console.log("QR Scan successful!");
-          
-          const sessionString = (client.session as any).save();
-          
-          const { error: updateError } = await supabaseClient
-            .from('telegram_connections')
-            .update({ 
-              status: 'connected', 
-              session_string: sessionString,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id);
-            
-          if (updateError) console.error("Error updating session:", updateError)
-        } catch (e) {
-          console.error("Error during scan wait:", e);
-          await supabaseClient
-            .from('telegram_connections')
-            .update({ status: 'disconnected', updated_at: new Date().toISOString() })
-            .eq('user_id', user.id);
-        } finally {
+        if (!qrData) {
           await client.disconnect()
+          throw new Error("Telegram demorou muito para gerar o QR Code. Tente novamente.")
         }
-      })();
 
-      // Convert Uint8Array to base64url
-      const uint8 = new Uint8Array(qrData.token);
-      let binary = '';
-      for (let i = 0; i < uint8.byteLength; i++) {
-        binary += String.fromCharCode(uint8[i]);
+        // Record pending connection
+        const { data: conn, error: connError } = await supabaseClient
+          .from('telegram_connections')
+          .upsert({ 
+            user_id: user.id, 
+            status: 'pending_qr',
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' })
+          .select()
+          .single()
+
+        if (connError) throw connError
+
+        // Keep waiting for the scan in the background
+        // Use a self-invoking function that doesn't block the response
+        (async () => {
+          try {
+            console.log("Waiting for user to scan QR...")
+            await signInPromise;
+            console.log("QR Scan successful!");
+            
+            const sessionString = (client.session as any).save();
+            
+            const { error: updateError } = await supabaseClient
+              .from('telegram_connections')
+              .update({ 
+                status: 'connected', 
+                session_string: sessionString,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+              
+            if (updateError) console.error("Error updating session:", updateError)
+          } catch (e) {
+            console.error("Error during scan wait:", e);
+            await supabaseClient
+              .from('telegram_connections')
+              .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+              .eq('user_id', user.id);
+          } finally {
+            await client.disconnect()
+          }
+        })();
+
+        // Convert Uint8Array to base64url
+        const uint8 = new Uint8Array(qrData.token);
+        let binary = '';
+        for (let i = 0; i < uint8.byteLength; i++) {
+          binary += String.fromCharCode(uint8[i]);
+        }
+        const base64Token = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        
+        return new Response(
+          JSON.stringify({ 
+            qr_link: `tg://login?token=${base64Token}`,
+            connection_id: conn.id
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      } catch (err) {
+        await client.disconnect()
+        throw err
       }
-      const base64Token = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      
-      return new Response(
-        JSON.stringify({ 
-          qr_link: `tg://login?token=${base64Token}`,
-          connection_id: conn.id
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
     }
 
     return new Response(JSON.stringify({ error: 'Action not supported' }), { 
