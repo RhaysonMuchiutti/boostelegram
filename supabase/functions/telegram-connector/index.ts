@@ -273,7 +273,7 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        const dialogs = await client.getDialogs({ limit: 20 });
+        const dialogs = await client.getDialogs({ limit: 100 });
         const chats = dialogs.map(d => ({
           id: d.id.toString(),
           name: d.title || "Unknown",
