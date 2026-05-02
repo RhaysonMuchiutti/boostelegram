@@ -73,10 +73,12 @@ export const TelegramConnectView = () => {
     return () => clearInterval(timer);
   }, [step, timeLeft]);
 
-  // Limpa o polling ao desmontar ou mudar de passo
+  // Limpa o canal de realtime ao desmontar ou mudar de passo
   useEffect(() => {
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+      }
     };
   }, []);
 
