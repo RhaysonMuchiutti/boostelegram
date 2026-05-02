@@ -329,7 +329,6 @@ serve(async (req) => {
     }
 
     if (action === 'send-message') {
-      // chatId and message already destructured from body
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
@@ -387,6 +386,12 @@ serve(async (req) => {
       }
     }
 
+    return new Response(JSON.stringify({ error: 'Action not supported' }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    })
+
+  } catch (error: any) {
     console.error("Function Error:", error)
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 
