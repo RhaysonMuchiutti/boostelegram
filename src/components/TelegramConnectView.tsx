@@ -84,6 +84,20 @@ export const TelegramConnectView = () => {
     setStep("loading");
     
     try {
+      // Salvar ou atualizar as credenciais no banco de dados
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("telegram_credentials")
+          .upsert({
+            user_id: user.id,
+            api_id: apiCredentials.appId,
+            api_hash: apiCredentials.apiHash
+          }, { onConflict: 'user_id' });
+        
+        toast.success("Credenciais salvas com sucesso!");
+      }
+
       // Chamada para a Edge Function que vamos criar
       // Esta função vai iniciar o processo no backend seguro
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
