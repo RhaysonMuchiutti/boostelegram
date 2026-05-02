@@ -13,6 +13,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -22,23 +28,39 @@ interface SidebarItemProps {
   onClick?: () => void;
 }
 
-const SidebarItem = ({ icon: Icon, label, active, collapsed, onClick }: SidebarItemProps) => (
-  <button
-    onClick={onClick}
-    title={collapsed ? label : undefined}
-    className={cn(
-      "flex items-center w-full gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg whitespace-nowrap overflow-hidden",
-      active 
-        ? "bg-primary text-primary-foreground" 
-        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-      collapsed && "px-3 justify-center"
-    )}
-  >
-    <Icon className="w-5 h-5 flex-shrink-0" />
-    {!collapsed && <span>{label}</span>}
-    {active && !collapsed && <ChevronRight className="w-4 h-4 ml-auto" />}
-  </button>
-);
+const SidebarItem = ({ icon: Icon, label, active, collapsed, onClick }: SidebarItemProps) => {
+  const content = (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center w-full gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg whitespace-nowrap overflow-hidden",
+        active 
+          ? "bg-primary text-primary-foreground" 
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        collapsed && "px-3 justify-center"
+      )}
+    >
+      <Icon className="w-5 h-5 flex-shrink-0" />
+      {!collapsed && <span>{label}</span>}
+      {active && !collapsed && <ChevronRight className="w-4 h-4 ml-auto" />}
+    </button>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>
+          {content}
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return content;
+};
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -82,18 +104,24 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
                 </h1>
               )}
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="hidden lg:flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200" 
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCollapsed(!isCollapsed);
-              }}
-              title={isCollapsed ? "Expandir menu" : "Recolher menu"}
-            >
-              {isCollapsed ? <PanelLeftOpen className="w-5 h-5 text-primary" /> : <PanelLeftClose className="w-5 h-5 text-primary" />}
-            </Button>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hidden lg:flex shrink-0 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCollapsed(!isCollapsed);
+                  }}
+                >
+                  {isCollapsed ? <PanelLeftOpen className="w-5 h-5 text-primary" /> : <PanelLeftClose className="w-5 h-5 text-primary" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {isCollapsed ? "Expandir menu" : "Recolher menu"}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <nav className="flex-1 space-y-1">
