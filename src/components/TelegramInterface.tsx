@@ -174,6 +174,68 @@ export const TelegramInterface = () => {
     }
   };
 
+  const handleRemoveMember = async (groupId: string, userId: string) => {
+    if (!creds) return;
+    setIsManaging(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "remove-members", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupId,
+          userIds: [userId]
+        }
+      });
+      
+      if (!error && data?.results) {
+        const removed = data.results.filter((r: any) => r.status === 'removed').length;
+        if (removed > 0) {
+          toast.success("Membro removido com sucesso.");
+          fetchParticipants(groupId);
+        } else {
+          toast.error("Falha ao remover membro: " + (data.results[0]?.error || "Erro desconhecido"));
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao remover membro:", err);
+      toast.error("Falha na remoção.");
+    } finally {
+      setIsManaging(false);
+    }
+  };
+
+  const handleReplaceMembers = async (groupId: string, removeUserIds: string[]) => {
+    if (!creds) return;
+    setIsManaging(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "replace-members", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupId,
+          removeUserIds,
+          addUserList: replaceList
+        }
+      });
+      
+      if (!error && data?.results) {
+        const removed = data.results.removed.filter((r: any) => r.status === 'removed').length;
+        const added = data.results.added.filter((r: any) => r.status === 'added').length;
+        toast.success(`Substituição concluída: ${removed} removidos, ${added} adicionados.`);
+        setReplaceList("");
+        setIsManageOpen(false);
+        fetchParticipants(groupId);
+      }
+    } catch (err) {
+      console.error("Erro ao substituir membros:", err);
+      toast.error("Falha na substituição.");
+    } finally {
+      setIsManaging(false);
+    }
+  };
+
   const fetchMessages = async (chatId: string, isLoadMore = false) => {
     if (!creds || (isLoadMore && (!hasMore || isLoadingMore))) return;
     
