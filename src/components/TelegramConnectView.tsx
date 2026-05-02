@@ -12,6 +12,7 @@ export const TelegramConnectView = () => {
   const [qrString, setQrString] = useState(""); 
   const [apiCredentials, setApiCredentials] = useState({ appId: "", apiHash: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [telegramUser, setTelegramUser] = useState<string | null>(null);
   const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
