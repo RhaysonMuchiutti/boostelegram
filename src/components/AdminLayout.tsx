@@ -39,9 +39,8 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-export const AdminLayout = ({ children }: AdminLayoutProps) => {
+export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutProps & { activeTab: string, setActiveTab: (tab: string) => void }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
