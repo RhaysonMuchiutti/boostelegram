@@ -7,6 +7,7 @@ import { BotFlowDesign } from "@/components/BotFlowDesign";
 import { TelegramConnectView } from "@/components/TelegramConnectView";
 import { TelegramInterface } from "@/components/TelegramInterface";
 import { AutomationRulesView } from "@/components/AutomationRulesView";
+import { TelegramSettingsView } from "@/components/TelegramSettingsView";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
