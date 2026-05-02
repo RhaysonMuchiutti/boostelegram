@@ -61,6 +61,9 @@ export const TelegramInterface = () => {
   const [isImportOpen, setIsParticipantsImportOpen] = useState(false);
   const [importList, setImportList] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  const [isManageOpen, setIsManageOpen] = useState(false);
+  const [isManaging, setIsManaging] = useState(false);
+  const [replaceList, setReplaceList] = useState("");
   const [myGroups, setMyGroups] = useState<any[]>([]);
 
   const listRef = useRef<any>(null);
