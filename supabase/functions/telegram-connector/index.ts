@@ -410,15 +410,28 @@ serve(async (req) => {
         const results = [];
         const usersToAdd = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
         
-        for (const userHandle of usersToAdd) {
+        for (let i = 0; i < usersToAdd.length; i++) {
+          const userHandle = usersToAdd[i];
           try {
             await client.invoke(new Api.channels.InviteToChannel({
               channel: groupId,
               users: [userHandle]
             }));
             results.push({ user: userHandle, status: 'added' });
+            
+            // Add delay between additions to protect account health
+            // Wait 15-30 seconds between members, with a longer pause every 5 members
+            if (i < usersToAdd.length - 1) {
+              const baseDelay = Math.floor(Math.random() * 15000) + 15000; // 15-30s
+              const extraDelay = (i + 1) % 5 === 0 ? 30000 : 0; // Extra 30s every 5 users
+              await new Promise(resolve => setTimeout(resolve, baseDelay + extraDelay));
+            }
           } catch (e: any) {
             results.push({ user: userHandle, status: 'error', error: e.message });
+            // If rate limited, stop and return what we have
+            if (e.message.includes('FLOOD_WAIT')) {
+              break;
+            }
           }
         }
         
