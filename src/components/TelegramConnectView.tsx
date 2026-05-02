@@ -15,6 +15,29 @@ export const TelegramConnectView = () => {
   const pollingRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Carregar credenciais salvas ao iniciar
+    const loadCredentials = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("telegram_credentials")
+        .select("api_id, api_hash")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data && !error) {
+        setApiCredentials({
+          appId: data.api_id,
+          apiHash: data.api_hash
+        });
+      }
+    };
+
+    loadCredentials();
+  }, []);
+
+  useEffect(() => {
     let timer: NodeJS.Timeout;
     if (step === "qr" && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
