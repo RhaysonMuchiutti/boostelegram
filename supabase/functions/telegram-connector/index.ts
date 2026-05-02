@@ -202,6 +202,47 @@ serve(async (req) => {
       }
     }
 
+    if (action === 'check-status') {
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string, telegram_username, status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn || !conn.session_string || conn.status !== 'connected') {
+        return new Response(JSON.stringify({ status: 'disconnected' }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId || "0"), apiHash || "", {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        const me = await client.getMe();
+        await client.disconnect();
+        
+        if (me) {
+          return new Response(JSON.stringify({ status: 'connected', username: conn.telegram_username }), { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          });
+        } else {
+          throw new Error("Invalid session");
+        }
+      } catch (e) {
+        await supabaseAdminClient
+          .from('telegram_connections')
+          .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+          
+        return new Response(JSON.stringify({ status: 'disconnected' }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ error: 'Action not supported' }), { 
       status: 400, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
