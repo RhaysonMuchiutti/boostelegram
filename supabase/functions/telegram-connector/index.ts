@@ -113,15 +113,17 @@ serve(async (req) => {
         // Keep waiting for the scan in the background
         (async () => {
           try {
-            console.log("Waiting for user to scan QR in background...");
-            await signInPromise;
-            
-            console.log("QR Scan successful!");
+            console.log(`[Background] Waiting for scan: User ${user.id}`);
+            const result = await signInPromise;
+            console.log(`[Background] Scan result:`, result);
 
             // Get user info to be sure we are logged in
             const me = await client.getMe();
-            const username = (me as Api.User).username || (me as Api.User).firstName || "User";
-            console.log(`Logged in as: ${username}`);
+            if (!me) throw new Error("Falha ao obter dados do perfil após login");
+            
+            const userData = me as Api.User;
+            const displayName = userData.username || userData.firstName || "Telegram User";
+            console.log(`[Background] Logged in as: ${displayName}`);
 
             const sessionString = (client.session as any).save();
             
@@ -135,18 +137,23 @@ serve(async (req) => {
               .eq('user_id', user.id);
 
             if (finalUpdateError) {
-              console.error("Error saving final session:", finalUpdateError);
+              console.error("[Background] Error saving session:", finalUpdateError);
             } else {
-              console.log("Session saved successfully to database");
+              console.log("[Background] Session saved successfully");
             }
           } catch (e) {
-            console.error("Error during background scan:", e);
+            console.error("[Background] Error during scan:", e);
+            // Only mark as disconnected if it wasn't already connected (to avoid race conditions)
             await supabaseClient
               .from('telegram_connections')
               .update({ status: 'disconnected', updated_at: new Date().toISOString() })
-              .eq('user_id', user.id);
+              .eq('user_id', user.id)
+              .neq('status', 'connected');
           } finally {
+            // Give it a tiny bit of time before closing
+            await new Promise(r => setTimeout(r, 1000));
             await client.disconnect();
+            console.log("[Background] Client disconnected");
           }
         })();
 
