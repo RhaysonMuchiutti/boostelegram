@@ -13,21 +13,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      buffer: "buffer",
-      process: "process/browser",
-      stream: "stream-browserify",
-      zlib: "browserify-zlib",
-      util: "util",
-      crypto: "crypto-browserify",
     },
   },
-  define: {
-    // Importante: 'global' deve ser definido como um objeto vazio ou window, 
-    // mas muitas libs esperam que ele exista para evitar crash imediato
-    global: "window",
-  },
-  optimizeDeps: {
-    // Garante que o Vite não tente otimizar de forma errada essas libs de node
-    include: ["buffer", "process", "stream-browserify", "browserify-zlib", "util", "crypto-browserify"],
-  },
+  // Removemos as definições complexas que quebram o navegador
 }));
