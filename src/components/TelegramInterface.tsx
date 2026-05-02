@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,10 @@ export const TelegramInterface = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [creds, setCreds] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastScrollHeight = useRef<number>(0);
 
   useEffect(() => {
     const init = async () => {
@@ -73,20 +77,62 @@ export const TelegramInterface = () => {
     }
   };
 
-  const fetchMessages = async (chatId: string) => {
-    if (!creds) return;
+  const fetchMessages = async (chatId: string, isLoadMore = false) => {
+    if (!creds || (isLoadMore && (!hasMore || isLoadingMore))) return;
+    
+    if (isLoadMore) setIsLoadingMore(true);
+    
     try {
+      const offsetId = isLoadMore && messages.length > 0 ? messages[0].id : undefined;
+      
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "get-messages", 
           apiId: creds.api_id, 
           apiHash: creds.api_hash,
-          chatId 
+          chatId,
+          offsetId,
+          limit: 30
         }
       });
-      if (!error && data?.messages) setMessages(data.messages.reverse());
+
+      if (!error && data?.messages) {
+        const newMsgs = data.messages.reverse();
+        if (newMsgs.length < 30) setHasMore(false);
+        
+        if (isLoadMore) {
+          // Store height to restore scroll
+          if (scrollRef.current) {
+            lastScrollHeight.current = scrollRef.current.scrollHeight;
+          }
+          setMessages(prev => [...newMsgs, ...prev]);
+        } else {
+          setMessages(newMsgs);
+          setHasMore(true);
+        }
+      }
     } catch (err) {
       console.error("Erro ao buscar mensagens:", err);
+    } finally {
+      if (isLoadMore) setIsLoadingMore(false);
+    }
+  };
+
+  // Restore scroll position after loading more
+  useEffect(() => {
+    if (isLoadingMore === false && lastScrollHeight.current > 0 && scrollRef.current) {
+      const newHeight = scrollRef.current.scrollHeight;
+      const heightDiff = newHeight - lastScrollHeight.current;
+      scrollRef.current.scrollTop = heightDiff;
+      lastScrollHeight.current = 0;
+    }
+  }, [messages, isLoadingMore]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop } = e.currentTarget;
+    // When scrolling up and reaching the top (or near it)
+    if (scrollTop < 50 && !isLoadingMore && hasMore && selectedChat) {
+      fetchMessages(selectedChat, true);
     }
   };
 
