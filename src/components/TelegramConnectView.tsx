@@ -161,7 +161,7 @@ export const TelegramConnectView = () => {
         setStep("qr");
         setTimeLeft(60);
         if (data.connection_id) {
-          startPollingStatus(data.connection_id);
+          startRealtimeStatus(data.connection_id);
         }
       } else {
         throw new Error("Não foi possível gerar o QR Code.");
