@@ -69,6 +69,7 @@ export const GroupManagerView = () => {
   const [participantsOffset, setParticipantsOffset] = useState(0);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importList, setImportList] = useState("");
+  const [parsedMembers, setParsedMembers] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
@@ -204,8 +205,44 @@ export const GroupManagerView = () => {
     }
   };
 
+  const parseMembers = (text: string) => {
+    // Split by comma, newline or space and clean up
+    const members = text
+      .split(/[,\n\s]+/)
+      .map(m => m.trim())
+      .filter(m => m.length > 0);
+    
+    // De-duplicate
+    const uniqueMembers = Array.from(new Set(members));
+    setParsedMembers(prev => Array.from(new Set([...prev, ...uniqueMembers])));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      parseMembers(content);
+      toast.success("Arquivo processado com sucesso!");
+    };
+    reader.readAsText(file);
+    // Clear the input
+    e.target.value = '';
+  };
+
+  const removeParsedMember = (index: number) => {
+    setParsedMembers(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleImportMembers = async () => {
-    if (!importList.trim() || !creds || !selectedGroup) return;
+    // Use parsedMembers if they exist, otherwise fallback to importList
+    const listToImport = parsedMembers.length > 0 
+      ? parsedMembers.join(",") 
+      : importList;
+
+    if (!listToImport.trim() || !creds || !selectedGroup) return;
     setIsImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
@@ -214,7 +251,7 @@ export const GroupManagerView = () => {
           apiId: creds.api_id, 
           apiHash: creds.api_hash,
           groupId: selectedGroup.id,
-          participantsList: importList
+          participantsList: listToImport
         }
       });
       
@@ -224,6 +261,7 @@ export const GroupManagerView = () => {
         toast.success(`Processo finalizado: ${added} membros adicionados.`);
         if (errors > 0) toast.error(`${errors} membros falharam.`);
         setImportList("");
+        setParsedMembers([]);
         setIsImportOpen(false);
         fetchParticipants(selectedGroup.id);
       }
@@ -462,7 +500,7 @@ export const GroupManagerView = () => {
         <Card className="md:col-span-2 flex flex-col min-h-0 overflow-hidden shadow-sm border-slate-200">
           {selectedGroup ? (
             <>
-              <CardHeader className="p-6 border-b flex flex-row items-center justify-between shrink-0">
+              <CardHeader className="p-4 sm:p-6 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
                     <Users className="w-6 h-6" />
@@ -490,40 +528,133 @@ export const GroupManagerView = () => {
                           Adicionar Membros
                         </Button>
                       </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[550px] max-h-[90vh] flex flex-col">
                       <DialogHeader>
                         <DialogTitle>Adicionar Membros</DialogTitle>
                         <CardDescription>
-                          Cole usernames (ex: @usuario) ou IDs, separados por vírgula ou linha.
-                          O sistema aplicará um delay automático para segurança.
+                          Importe uma lista de usuários para adicionar a este grupo/canal.
                         </CardDescription>
                       </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="members">Membros</Label>
-                          <Textarea
-                            id="members"
-                            placeholder="@usuario1, @usuario2, 12345678"
-                            className="min-h-[200px]"
-                            value={importList}
-                            onChange={(e) => setImportList(e.target.value)}
-                          />
+                      
+                      <ScrollArea className="flex-1 pr-4">
+                        <div className="space-y-6 py-4">
+                          <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-semibold">Importar de Arquivo</Label>
+                              <div className="flex items-center justify-center w-full">
+                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <FileText className="w-8 h-8 text-slate-400 mb-2" />
+                                    <p className="text-sm text-slate-500 font-medium">Clique para enviar ou arraste</p>
+                                    <p className="text-xs text-slate-400">CSV ou TXT com usernames ou IDs</p>
+                                  </div>
+                                  <Input 
+                                    type="file" 
+                                    className="hidden" 
+                                    accept=".csv,.txt"
+                                    onChange={handleFileUpload}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="members" className="text-sm font-semibold">Entrada Manual</Label>
+                                {importList.trim() && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                      parseMembers(importList);
+                                      setImportList("");
+                                    }}
+                                  >
+                                    Processar Texto
+                                  </Button>
+                                )}
+                              </div>
+                              <Textarea
+                                id="members"
+                                placeholder="@usuario1, @usuario2, 12345678"
+                                className="min-h-[100px] text-sm"
+                                value={importList}
+                                onChange={(e) => setImportList(e.target.value)}
+                              />
+                            </div>
+
+                            {parsedMembers.length > 0 && (
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-sm font-semibold flex items-center gap-2">
+                                    Lista de Revisão
+                                    <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full">
+                                      {parsedMembers.length} encontrados
+                                    </span>
+                                  </Label>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 text-xs text-red-500 hover:text-red-600"
+                                    onClick={() => setParsedMembers([])}
+                                  >
+                                    Limpar Tudo
+                                  </Button>
+                                </div>
+                                <div className="bg-slate-50 rounded-lg border border-slate-200 p-2 max-h-[200px] overflow-y-auto">
+                                  <div className="grid grid-cols-1 gap-1">
+                                    {parsedMembers.map((member, index) => (
+                                      <div key={index} className="flex items-center justify-between px-3 py-1.5 bg-white rounded border border-slate-100 group">
+                                        <span className="text-xs font-mono">{member}</span>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="h-6 w-6 text-slate-400 hover:text-red-500"
+                                          onClick={() => removeParsedMember(index)}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                              <Zap className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="text-[11px] font-semibold text-amber-900 leading-none">Segurança Anti-Spam</p>
+                                <p className="text-[10px] text-amber-800 leading-tight">
+                                  Delays: 15-30s por usuário + 30s de pausa a cada 5 para evitar bloqueios do Telegram.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg text-amber-800 text-xs">
-                          <Zap className="w-4 h-4 shrink-0" />
-                          <span>Delays configurados: 15-30s por usuário, 30s extra a cada 5 usuários.</span>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsImportOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleImportMembers} disabled={isImporting || !importList.trim()}>
+                      </ScrollArea>
+
+                      <DialogFooter className="mt-4 pt-4 border-t gap-2">
+                        <Button variant="outline" onClick={() => {
+                          setIsImportOpen(false);
+                          setParsedMembers([]);
+                          setImportList("");
+                        }}>
+                          Cancelar
+                        </Button>
+                        <Button 
+                          onClick={handleImportMembers} 
+                          disabled={isImporting || (parsedMembers.length === 0 && !importList.trim())}
+                          className="min-w-[140px]"
+                        >
                           {isImporting ? (
                             <>
                               <RefreshCw className="w-4 h-4 animate-spin mr-2" />
                               Adicionando...
                             </>
                           ) : (
-                            "Iniciar Adição"
+                            `Adicionar ${parsedMembers.length || ""} Membros`
                           )}
                         </Button>
                       </DialogFooter>
