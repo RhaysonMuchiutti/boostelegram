@@ -205,8 +205,44 @@ export const GroupManagerView = () => {
     }
   };
 
+  const parseMembers = (text: string) => {
+    // Split by comma, newline or space and clean up
+    const members = text
+      .split(/[,\n\s]+/)
+      .map(m => m.trim())
+      .filter(m => m.length > 0);
+    
+    // De-duplicate
+    const uniqueMembers = Array.from(new Set(members));
+    setParsedMembers(prev => Array.from(new Set([...prev, ...uniqueMembers])));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      parseMembers(content);
+      toast.success("Arquivo processado com sucesso!");
+    };
+    reader.readAsText(file);
+    // Clear the input
+    e.target.value = '';
+  };
+
+  const removeParsedMember = (index: number) => {
+    setParsedMembers(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleImportMembers = async () => {
-    if (!importList.trim() || !creds || !selectedGroup) return;
+    // Use parsedMembers if they exist, otherwise fallback to importList
+    const listToImport = parsedMembers.length > 0 
+      ? parsedMembers.join(",") 
+      : importList;
+
+    if (!listToImport.trim() || !creds || !selectedGroup) return;
     setIsImporting(true);
     try {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
@@ -215,7 +251,7 @@ export const GroupManagerView = () => {
           apiId: creds.api_id, 
           apiHash: creds.api_hash,
           groupId: selectedGroup.id,
-          participantsList: importList
+          participantsList: listToImport
         }
       });
       
@@ -225,6 +261,7 @@ export const GroupManagerView = () => {
         toast.success(`Processo finalizado: ${added} membros adicionados.`);
         if (errors > 0) toast.error(`${errors} membros falharam.`);
         setImportList("");
+        setParsedMembers([]);
         setIsImportOpen(false);
         fetchParticipants(selectedGroup.id);
       }
