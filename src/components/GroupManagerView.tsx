@@ -171,6 +171,7 @@ export const GroupManagerView = () => {
             failed: task.failed_count
           });
           setImportResults(task.results || []);
+          setImportStatus(task.status);
           setShowProgressWidget(true);
           setIsImporting(task.status === 'processing' || task.status === 'pending');
           setActiveImportId(task.id);
