@@ -593,13 +593,39 @@ serve(async (req) => {
       });
     }
 
+    if (action === 'resume-import') {
+      const { taskId } = body;
+      const { data: task } = await supabaseAdminClient
+        .from('import_tasks')
+        .select('status')
+        .eq('id', taskId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (!task || (task.status !== 'stopped' && task.status !== 'failed')) {
+        throw new Error('Apenas tarefas paradas ou com falha podem ser retomadas.');
+      }
+
+      await supabaseAdminClient
+        .from('import_tasks')
+        .update({ status: 'processing' })
+        .eq('id', taskId);
+
+      // Start background process without awaiting
+      processBackgroundImport(supabaseAdminClient, taskId, parseInt(apiId), apiHash);
+
+      return new Response(JSON.stringify({ success: true }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     if (action === 'get-active-import') {
       const { data: task } = await supabaseAdminClient
         .from('import_tasks')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['pending', 'processing'])
-        .order('created_at', { ascending: false })
+        .in('status', ['pending', 'processing', 'stopped', 'failed'])
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
