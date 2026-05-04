@@ -268,8 +268,18 @@ export const GroupManagerView = () => {
           }
         });
 
-        if (error || !data?.participants) {
-          throw new Error(error?.message || "Erro ao buscar dados de exportação");
+        if (error) {
+          const msg = (error as any)?.message || "";
+          if (msg.includes("CHAT_ADMIN_REQUIRED")) {
+            throw new Error("Este grupo/canal só permite exportar membros para administradores.");
+          }
+          throw new Error(msg || "Erro ao buscar dados de exportação");
+        }
+        if (data?.error === 'admin_required') {
+          throw new Error(data.message || "Sem permissão de administrador para listar membros.");
+        }
+        if (!data?.participants) {
+          throw new Error("Resposta inválida do servidor");
         }
 
         allParticipants = [...allParticipants, ...data.participants];
