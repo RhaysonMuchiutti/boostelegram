@@ -16,7 +16,8 @@ import {
   Info,
   FileDown,
   FileText,
-  Table
+  Table,
+  Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -44,8 +45,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+const exportColumns = [
+  { id: "id", label: "ID" },
+  { id: "firstName", label: "Primeiro Nome" },
+  { id: "lastName", label: "Sobrenome" },
+  { id: "username", label: "Username" },
+  { id: "status", label: "Status" },
+  { id: "joinedDate", label: "Data de Entrada" },
+];
 
 export const GroupManagerView = () => {
   const [myGroups, setMyGroups] = useState<any[]>([]);
@@ -58,6 +69,9 @@ export const GroupManagerView = () => {
   const [importList, setImportList] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
 
   const init = async () => {
     setIsLoading(true);
