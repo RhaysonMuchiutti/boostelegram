@@ -86,6 +86,8 @@ export const GroupManagerView = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [groupLink, setGroupLink] = useState("");
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, added: 0, failed: 0 });
+  const [showProgressWidget, setShowProgressWidget] = useState(false);
 
   const init = async () => {
     setIsLoading(true);
@@ -317,23 +319,27 @@ export const GroupManagerView = () => {
   };
 
   const handleImportMembers = async () => {
-    // Use parsedMembers if they exist, otherwise fallback to importList
     const listToImport = parsedMembers.length > 0 
       ? parsedMembers.join(",") 
       : importList;
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
-    setIsImporting(true);
     
+    setIsImporting(true);
     const allResults: any[] = [];
     let currentOffset = 0;
     let hasMore = true;
-    const BATCH_SIZE = 4; // ~4 users per call * ~30s = ~120s, safely under 150s limit
+    const BATCH_SIZE = 4;
     
+    const rawUsers = listToImport.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+    const totalToProcess = rawUsers.length;
+    
+    setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
+    setShowProgressWidget(true);
+    setIsImportOpen(false);
+
     try {
-      // Close dialog immediately so user sees progress in toast
-      setIsImportOpen(false);
-      toast.info("Iniciando adição de membros em lotes...");
+      toast.info(`Iniciando adição de ${totalToProcess} membros...`);
       
       while (hasMore) {
         const { data, error } = await supabase.functions.invoke("telegram-connector", {
@@ -356,8 +362,15 @@ export const GroupManagerView = () => {
         
         if (data?.results) {
           allResults.push(...data.results);
-          const addedSoFar = allResults.filter((r: any) => r.status === 'added').length;
-          toast.info(`Progresso: ${data.processed}/${data.total} processados (${addedSoFar} adicionados)`);
+          const addedBatch = data.results.filter((r: any) => r.status === 'added').length;
+          const failedBatch = data.results.filter((r: any) => r.status === 'error').length;
+          
+          setImportProgress(prev => ({
+            ...prev,
+            current: data.processed,
+            added: prev.added + addedBatch,
+            failed: prev.failed + failedBatch
+          }));
         }
         
         hasMore = data?.hasMore === true;
@@ -379,9 +392,13 @@ export const GroupManagerView = () => {
       setImportList("");
       setParsedMembers([]);
       fetchParticipants(selectedGroup.id);
+      
+      // Keep widget visible for 5 seconds after finish
+      setTimeout(() => setShowProgressWidget(false), 5000);
     } catch (err) {
       console.error("Erro ao importar membros:", err);
       toast.error("Falha na importação.");
+      setShowProgressWidget(false);
     } finally {
       setIsImporting(false);
     }
@@ -532,7 +549,56 @@ export const GroupManagerView = () => {
   );
 
   return (
-    <div className="flex flex-col h-full gap-6">
+    <div className="flex flex-col h-full gap-6 relative">
+      {showProgressWidget && (
+        <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card className="w-80 shadow-2xl border-primary/20 bg-white/95 backdrop-blur-sm overflow-hidden">
+            <CardHeader className="p-4 pb-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
+                  {isImporting ? "Adicionando Membros..." : "Processamento Concluído"}
+                </CardTitle>
+                <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                  {Math.round((importProgress.current / importProgress.total) * 100)}%
+                </span>
+              </div>
+              <CardDescription className="text-[10px]">
+                {importProgress.current} de {importProgress.total} processados
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-primary h-full transition-all duration-500 ease-out"
+                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 p-2 rounded-lg border border-green-100">
+                  <p className="text-[9px] uppercase font-bold text-green-600 mb-0.5">Sucesso</p>
+                  <p className="text-sm font-bold text-green-700">{importProgress.added}</p>
+                </div>
+                <div className="bg-red-50 p-2 rounded-lg border border-red-100">
+                  <p className="text-[9px] uppercase font-bold text-red-600 mb-0.5">Falhas</p>
+                  <p className="text-sm font-bold text-red-700">{importProgress.failed}</p>
+                </div>
+              </div>
+              {!isImporting && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full h-7 text-[10px] text-slate-500 hover:text-slate-700"
+                  onClick={() => setShowProgressWidget(false)}
+                >
+                  Fechar
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Gerenciar Grupos e Canais</h2>
