@@ -147,20 +147,53 @@ export const GroupManagerView = () => {
     }
   }, [activeImportId]);
 
-  // Handle recovery of active import on mount
+  // Monitor active import from DB
   useEffect(() => {
-    const recoveredId = localStorage.getItem("active_import_id");
-    const recoveredList = localStorage.getItem("import_list_backup");
-    const recoveredOffset = localStorage.getItem("current_import_offset");
+    let interval: any;
+    
+    const checkActiveImport = async () => {
+      if (!creds) return;
+      
+      try {
+        const { data, error } = await supabase.functions.invoke("telegram-connector", {
+          body: { action: "get-active-import", apiId: creds.api_id, apiHash: creds.api_hash }
+        });
 
-    if (recoveredId && recoveredList && !isImporting && selectedGroup?.id === recoveredId) {
-      const offset = parseInt(recoveredOffset || "0", 10);
-      if (offset < importProgress.total) {
-        toast.info("Retomando importação interrompida...");
-        handleImportMembers(recoveredList, offset);
+        if (error) return;
+
+        if (data?.task) {
+          const task = data.task;
+          setImportProgress({
+            current: task.processed_count,
+            total: task.total_count,
+            added: task.added_count,
+            failed: task.failed_count
+          });
+          setImportResults(task.results || []);
+          setShowProgressWidget(true);
+          setIsImporting(task.status === 'processing' || task.status === 'pending');
+          setActiveImportId(task.id);
+          
+          if (task.status === 'completed' || task.status === 'failed' || task.status === 'stopped') {
+            const errors = (task.results || []).filter((r: any) => r.status === 'error');
+            setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
+          }
+        } else if (isImporting) {
+          // If no active task found but we think we are importing, reset
+          setIsImporting(false);
+        }
+      } catch (err) {
+        console.error("Error polling import:", err);
       }
+    };
+
+    if (creds) {
+      checkActiveImport();
+      interval = setInterval(checkActiveImport, 3000);
     }
-  }, [selectedGroup, creds]); // Run when group/creds are ready
+
+    return () => clearInterval(interval);
+  }, [creds, isImporting]);
 
   const fetchMyGroups = async (credentials: any) => {
     try {
@@ -362,119 +395,59 @@ export const GroupManagerView = () => {
     }
   };
 
-  const handleImportMembers = async (listOverride?: string, offsetOverride?: number) => {
-    const listToImport = listOverride || (parsedMembers.length > 0 
+  const handleImportMembers = async () => {
+    const listToImport = parsedMembers.length > 0 
       ? parsedMembers.join(",") 
-      : importList);
+      : importList;
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     
     setIsImporting(true);
-    setShouldStopImport(false);
-    setActiveImportId(selectedGroup.id);
-    localStorage.setItem("import_list_backup", listToImport);
-
-    const allResults: any[] = [];
-    let currentOffset = offsetOverride || 0;
-    let hasMore = true;
-    const BATCH_SIZE = 4;
-    
-    const rawUsers = listToImport.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
-    const totalToProcess = rawUsers.length;
-    
-    if (!offsetOverride) {
-      setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
-    }
     setShowProgressWidget(true);
     setIsImportOpen(false);
 
     try {
-      toast.info(`Iniciando adição de ${totalToProcess} membros...`);
-      
-      let stopImport = false;
-      while (hasMore && !stopImport) {
-        // Read latest state using a promise/callback pattern to avoid stale closure issues in the loop
-        const checkStatus = () => new Promise<boolean>(resolve => {
-          setShouldStopImport(prev => {
-            resolve(prev);
-            return prev;
-          });
-        });
-        
-        stopImport = await checkStatus();
-        if (stopImport) break;
-
-
-
-        const { data, error } = await supabase.functions.invoke("telegram-connector", {
-          body: { 
-            action: "add-members", 
-            apiId: creds.api_id, 
-            apiHash: creds.api_hash,
-            groupId: selectedGroup.id,
-            participantsList: listToImport,
-            batchOffset: currentOffset,
-            batchSize: BATCH_SIZE
-          }
-        });
-        
-        if (error) {
-          console.error("Erro no lote:", error);
-          toast.error(`Erro no lote (offset ${currentOffset}): ${error.message || 'desconhecido'}`);
-          break;
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "start-import", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupId: selectedGroup.id,
+          groupTitle: selectedGroup.title,
+          participantsList: listToImport
         }
-        
-        if (data?.results) {
-          allResults.push(...data.results);
-          const addedBatch = data.results.filter((r: any) => r.status === 'added').length;
-          const failedBatch = data.results.filter((r: any) => r.status === 'error').length;
-          
-          setImportProgress(prev => ({
-            ...prev,
-            current: data.processed,
-            added: prev.added + addedBatch,
-            failed: prev.failed + failedBatch
-          }));
-        }
-        
-        hasMore = data?.hasMore === true;
-        currentOffset = data?.nextOffset ?? currentOffset + BATCH_SIZE;
-        localStorage.setItem("current_import_offset", currentOffset.toString());
-      }
-      
-      setActiveImportId(null); // Clear active import tracking on finish
-      setImportResults(allResults); // Save results for report generation
-
-
-      
-      const added = allResults.filter((r: any) => r.status === 'added').length;
-      const errors = allResults.filter((r: any) => r.status === 'error');
-      const failedCount = errors.length;
-      
-      setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
-
-      toast.success("Processamento concluído!", {
-        description: `${added} adicionados, ${failedCount} falhas de ${totalToProcess} membros processados.`,
-        duration: 10000,
-        action: failedCount > 0 ? {
-          label: "Revisar Falhas",
-          onClick: () => setIsFailuresDialogOpen(true)
-        } : undefined
       });
-
-
+      
+      if (error) throw error;
+      
+      setActiveImportId(data.taskId);
+      toast.success("Importação iniciada em segundo plano!");
+      
       setImportList("");
       setParsedMembers([]);
-      fetchParticipants(selectedGroup.id);
-      
-      // Keep widget visible for 5 seconds after finish
-      setTimeout(() => setShowProgressWidget(false), 5000);
-    } catch (err) {
-      console.error("Erro ao importar membros:", err);
-      toast.error("Falha na importação.");
-      setShowProgressWidget(false);
-    } finally {
+    } catch (err: any) {
+      console.error("Erro ao iniciar importação:", err);
+      toast.error(err.message || "Falha ao iniciar importação.");
       setIsImporting(false);
+      setShowProgressWidget(false);
+    }
+  };
+
+  const handleStopImport = async () => {
+    if (!activeImportId || !creds) return;
+    
+    try {
+      await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "stop-import", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          taskId: activeImportId
+        }
+      });
+      toast.info("Comando de parada enviado.");
+    } catch (err) {
+      console.error("Erro ao parar importação:", err);
     }
   };
 
@@ -657,7 +630,7 @@ export const GroupManagerView = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
-                  {isImporting ? "Adicionando Membros..." : shouldStopImport ? "Processamento Interrompido" : "Processamento Concluído"}
+                  {isImporting ? "Adicionando Membros..." : "Processamento Finalizado"}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {isImporting && (
@@ -665,7 +638,7 @@ export const GroupManagerView = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-5 w-5 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => setShouldStopImport(true)}
+                      onClick={handleStopImport}
                       title="Interromper importação"
                     >
                       <Trash2 className="w-3 h-3" />
