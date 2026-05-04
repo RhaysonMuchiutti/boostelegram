@@ -99,6 +99,7 @@ export const GroupManagerView = () => {
   });
   const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
   const [importResults, setImportResults] = useState<any[]>([]);
+  const [importStatus, setImportStatus] = useState<string>('idle');
 
   const init = async () => {
     setIsLoading(true);
