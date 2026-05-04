@@ -1053,34 +1053,40 @@ serve(async (req) => {
                 const memberCount = entity.participantsCount || 0;
                 
                 // Upsert into scraped_groups with advanced dedup logic
-                // We use telegram_id as the primary key for conflict, 
-                // but we also check if the username was updated to keep data fresh.
-                const { error: upsertError } = await supabaseAdminClient
-                  .from('scraped_groups')
-                  .upsert({
-                    niche_id: nicheId,
-                    title: entity.title,
-                    username: entity.username,
-                    description: entity.about || "",
-                    member_count: memberCount,
-                    type: entity.className === 'Channel' ? (entity.broadcast ? 'channel' : 'group') : 'group',
-                    telegram_id: entity.id.toString(),
-                    updated_at: new Date().toISOString()
-                  }, { 
-                    onConflict: 'telegram_id',
-                    ignoreDuplicates: false // Ensures we update existing rows if anything changed
-                  });
-                
-                if (!upsertError) foundCount++;
+                if (entity.username) {
+                  const memberCount = entity.participantsCount || 0;
+                  console.log(`[SCRAPE] Group found: @${entity.username} (${memberCount} members)`);
+                  
+                  const { error: upsertError } = await supabaseAdminClient
+                    .from('scraped_groups')
+                    .upsert({
+                      niche_id: nicheId,
+                      title: entity.title,
+                      username: entity.username,
+                      description: entity.about || "",
+                      member_count: memberCount,
+                      type: entity.className === 'Channel' ? (entity.broadcast ? 'channel' : 'group') : 'group',
+                      telegram_id: entity.id.toString(),
+                      updated_at: new Date().toISOString()
+                    }, { 
+                      onConflict: 'telegram_id',
+                      ignoreDuplicates: false
+                    });
+                  
+                  if (upsertError) {
+                    console.error(`[SCRAPE] Error upserting group @${entity.username}:`, upsertError);
+                  } else {
+                    foundCount++;
+                  }
+                }
               }
+            } catch (keywordError) {
+              console.error(`[SCRAPE] Error searching keyword "${keyword}":`, keywordError);
             }
-          } catch (keywordError) {
-            console.error(`Error searching keyword "${keyword}":`, keywordError);
-            // Continue with next keyword
           }
-        }
-
-        await client.disconnect();
+  
+          console.log(`[SCRAPE] Scraping finished. Total groups saved/updated: ${foundCount}`);
+          await client.disconnect();
         return new Response(JSON.stringify({ success: true, count: foundCount }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
