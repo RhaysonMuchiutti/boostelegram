@@ -41,6 +41,60 @@ export type Database = {
         }
         Relationships: []
       }
+      import_tasks: {
+        Row: {
+          added_count: number
+          created_at: string
+          current_offset: number
+          error_message: string | null
+          failed_count: number
+          group_id: string
+          group_title: string | null
+          id: string
+          participants_list: string
+          processed_count: number
+          results: Json | null
+          status: Database["public"]["Enums"]["import_status"]
+          total_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_count?: number
+          created_at?: string
+          current_offset?: number
+          error_message?: string | null
+          failed_count?: number
+          group_id: string
+          group_title?: string | null
+          id?: string
+          participants_list: string
+          processed_count?: number
+          results?: Json | null
+          status?: Database["public"]["Enums"]["import_status"]
+          total_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          added_count?: number
+          created_at?: string
+          current_offset?: number
+          error_message?: string | null
+          failed_count?: number
+          group_id?: string
+          group_title?: string | null
+          id?: string
+          participants_list?: string
+          processed_count?: number
+          results?: Json | null
+          status?: Database["public"]["Enums"]["import_status"]
+          total_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       telegram_connections: {
         Row: {
           created_at: string
@@ -112,7 +166,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      import_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "stopped"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -239,6 +298,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      import_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "stopped",
+      ],
+    },
   },
 } as const
