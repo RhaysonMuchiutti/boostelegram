@@ -585,6 +585,27 @@ export const GroupManagerView = () => {
     }
   };
 
+  const handleResumeImport = async () => {
+    if (!activeImportId || !creds) return;
+    
+    try {
+      setIsImporting(true);
+      await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "resume-import", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          taskId: activeImportId
+        }
+      });
+      toast.success("Importação retomada!");
+    } catch (err: any) {
+      console.error("Erro ao retomar importação:", err);
+      toast.error(err.message || "Falha ao retomar importação.");
+      setIsImporting(false);
+    }
+  };
+
   const downloadImportReport = (results: any[]) => {
     if (results.length === 0) return;
     
