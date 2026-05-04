@@ -65,27 +65,37 @@ export const NicheFinderView = () => {
   }, []);
 
   const handleAddNiche = async () => {
-    if (!newNicheName.trim()) return;
+    if (!newNicheName.trim()) {
+      toast.warning("O nome do nicho é obrigatório.");
+      return;
+    }
     
     const keywords = newNicheKeywords.split(",").map(k => k.trim()).filter(Boolean);
+    if (keywords.length === 0) {
+      toast.warning("Adicione pelo menos uma palavra-chave.");
+      return;
+    }
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Usuário não autenticado.");
 
-    const { error } = await supabase.from("niche_categories").insert({
-      name: newNicheName,
-      keywords,
-      user_id: user.id
-    });
+      const { error } = await supabase.from("niche_categories").insert({
+        name: newNicheName,
+        keywords,
+        user_id: user.id
+      });
 
-    if (error) {
-      toast.error("Erro ao adicionar nicho");
-    } else {
+      if (error) throw error;
+      
       toast.success("Nicho adicionado com sucesso!");
       setNewNicheName("");
       setNewNicheKeywords("");
       setIsAddingNiche(false);
       fetchCategories();
+    } catch (err: any) {
+      console.error("Erro ao adicionar nicho:", err);
+      toast.error(err.message || "Erro ao adicionar nicho. Tente novamente.");
     }
   };
 
@@ -99,13 +109,17 @@ export const NicheFinderView = () => {
     toast.info("Iniciando garimpo de grupos por nicho...");
 
     try {
-      // Aqui chamaríamos uma Edge Function futura que usa a API do Telegram para buscar grupos globais
-      // Por enquanto, vamos simular que encontramos novos grupos
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Simulação de delay para futura Edge Function
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, 3000);
+        // Possibilidade de reject se quisermos testar erro
+      });
+      
       toast.success("Novos grupos encontrados e catalogados!");
       fetchGroups(selectedNiche);
-    } catch (error) {
-      toast.error("Erro ao garimpar grupos");
+    } catch (error: any) {
+      console.error("Erro ao garimpar:", error);
+      toast.error("Erro ao garimpar grupos. Verifique sua conexão com o Telegram.");
     } finally {
       setIsSearching(false);
     }
