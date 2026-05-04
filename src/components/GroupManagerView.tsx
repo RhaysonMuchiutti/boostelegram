@@ -395,119 +395,59 @@ export const GroupManagerView = () => {
     }
   };
 
-  const handleImportMembers = async (listOverride?: string, offsetOverride?: number) => {
-    const listToImport = listOverride || (parsedMembers.length > 0 
+  const handleImportMembers = async () => {
+    const listToImport = parsedMembers.length > 0 
       ? parsedMembers.join(",") 
-      : importList);
+      : importList;
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     
     setIsImporting(true);
-    setShouldStopImport(false);
-    setActiveImportId(selectedGroup.id);
-    localStorage.setItem("import_list_backup", listToImport);
-
-    const allResults: any[] = [];
-    let currentOffset = offsetOverride || 0;
-    let hasMore = true;
-    const BATCH_SIZE = 4;
-    
-    const rawUsers = listToImport.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
-    const totalToProcess = rawUsers.length;
-    
-    if (!offsetOverride) {
-      setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
-    }
     setShowProgressWidget(true);
     setIsImportOpen(false);
 
     try {
-      toast.info(`Iniciando adição de ${totalToProcess} membros...`);
-      
-      let stopImport = false;
-      while (hasMore && !stopImport) {
-        // Read latest state using a promise/callback pattern to avoid stale closure issues in the loop
-        const checkStatus = () => new Promise<boolean>(resolve => {
-          setShouldStopImport(prev => {
-            resolve(prev);
-            return prev;
-          });
-        });
-        
-        stopImport = await checkStatus();
-        if (stopImport) break;
-
-
-
-        const { data, error } = await supabase.functions.invoke("telegram-connector", {
-          body: { 
-            action: "add-members", 
-            apiId: creds.api_id, 
-            apiHash: creds.api_hash,
-            groupId: selectedGroup.id,
-            participantsList: listToImport,
-            batchOffset: currentOffset,
-            batchSize: BATCH_SIZE
-          }
-        });
-        
-        if (error) {
-          console.error("Erro no lote:", error);
-          toast.error(`Erro no lote (offset ${currentOffset}): ${error.message || 'desconhecido'}`);
-          break;
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "start-import", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupId: selectedGroup.id,
+          groupTitle: selectedGroup.title,
+          participantsList: listToImport
         }
-        
-        if (data?.results) {
-          allResults.push(...data.results);
-          const addedBatch = data.results.filter((r: any) => r.status === 'added').length;
-          const failedBatch = data.results.filter((r: any) => r.status === 'error').length;
-          
-          setImportProgress(prev => ({
-            ...prev,
-            current: data.processed,
-            added: prev.added + addedBatch,
-            failed: prev.failed + failedBatch
-          }));
-        }
-        
-        hasMore = data?.hasMore === true;
-        currentOffset = data?.nextOffset ?? currentOffset + BATCH_SIZE;
-        localStorage.setItem("current_import_offset", currentOffset.toString());
-      }
-      
-      setActiveImportId(null); // Clear active import tracking on finish
-      setImportResults(allResults); // Save results for report generation
-
-
-      
-      const added = allResults.filter((r: any) => r.status === 'added').length;
-      const errors = allResults.filter((r: any) => r.status === 'error');
-      const failedCount = errors.length;
-      
-      setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
-
-      toast.success("Processamento concluído!", {
-        description: `${added} adicionados, ${failedCount} falhas de ${totalToProcess} membros processados.`,
-        duration: 10000,
-        action: failedCount > 0 ? {
-          label: "Revisar Falhas",
-          onClick: () => setIsFailuresDialogOpen(true)
-        } : undefined
       });
-
-
+      
+      if (error) throw error;
+      
+      setActiveImportId(data.taskId);
+      toast.success("Importação iniciada em segundo plano!");
+      
       setImportList("");
       setParsedMembers([]);
-      fetchParticipants(selectedGroup.id);
-      
-      // Keep widget visible for 5 seconds after finish
-      setTimeout(() => setShowProgressWidget(false), 5000);
-    } catch (err) {
-      console.error("Erro ao importar membros:", err);
-      toast.error("Falha na importação.");
-      setShowProgressWidget(false);
-    } finally {
+    } catch (err: any) {
+      console.error("Erro ao iniciar importação:", err);
+      toast.error(err.message || "Falha ao iniciar importação.");
       setIsImporting(false);
+      setShowProgressWidget(false);
+    }
+  };
+
+  const handleStopImport = async () => {
+    if (!activeImportId || !creds) return;
+    
+    try {
+      await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "stop-import", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          taskId: activeImportId
+        }
+      });
+      toast.info("Comando de parada enviado.");
+    } catch (err) {
+      console.error("Erro ao parar importação:", err);
     }
   };
 
