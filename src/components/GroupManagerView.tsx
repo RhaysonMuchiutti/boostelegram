@@ -442,6 +442,7 @@ export const GroupManagerView = () => {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
+                )}
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
