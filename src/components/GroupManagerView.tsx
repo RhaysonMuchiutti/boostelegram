@@ -804,7 +804,10 @@ export const GroupManagerView = () => {
                           <Button 
                             variant="outline" 
                             className="flex-1"
-                            onClick={() => setFailedMembers([])}
+                             onClick={() => {
+                               setFailedMembers([]);
+                               setIsFailuresDialogOpen(false);
+                             }}
                           >
                             Limpar Lista
                           </Button>
