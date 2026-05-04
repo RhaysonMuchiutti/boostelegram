@@ -87,8 +87,16 @@ export const GroupManagerView = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [groupLink, setGroupLink] = useState("");
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
-  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, added: 0, failed: 0 });
-  const [showProgressWidget, setShowProgressWidget] = useState(false);
+  const [importProgress, setImportProgress] = useState(() => {
+    const saved = localStorage.getItem("import_progress");
+    return saved ? JSON.parse(saved) : { current: 0, total: 0, added: 0, failed: 0 };
+  });
+  const [showProgressWidget, setShowProgressWidget] = useState(() => {
+    return localStorage.getItem("show_progress_widget") === "true";
+  });
+  const [activeImportId, setActiveImportId] = useState(() => {
+    return localStorage.getItem("active_import_id") || null;
+  });
   const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
 
   const init = async () => {
@@ -119,6 +127,39 @@ export const GroupManagerView = () => {
   useEffect(() => {
     init();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("import_progress", JSON.stringify(importProgress));
+  }, [importProgress]);
+
+  useEffect(() => {
+    localStorage.setItem("show_progress_widget", showProgressWidget.toString());
+  }, [showProgressWidget]);
+
+  useEffect(() => {
+    if (activeImportId) {
+      localStorage.setItem("active_import_id", activeImportId);
+    } else {
+      localStorage.removeItem("active_import_id");
+      localStorage.removeItem("import_list_backup");
+      localStorage.removeItem("current_import_offset");
+    }
+  }, [activeImportId]);
+
+  // Handle recovery of active import on mount
+  useEffect(() => {
+    const recoveredId = localStorage.getItem("active_import_id");
+    const recoveredList = localStorage.getItem("import_list_backup");
+    const recoveredOffset = localStorage.getItem("current_import_offset");
+
+    if (recoveredId && recoveredList && !isImporting && selectedGroup?.id === recoveredId) {
+      const offset = parseInt(recoveredOffset || "0", 10);
+      if (offset < importProgress.total) {
+        toast.info("Retomando importação interrompida...");
+        handleImportMembers(recoveredList, offset);
+      }
+    }
+  }, [selectedGroup, creds]); // Run when group/creds are ready
 
   const fetchMyGroups = async (credentials: any) => {
     try {
@@ -320,24 +361,29 @@ export const GroupManagerView = () => {
     }
   };
 
-  const handleImportMembers = async () => {
-    const listToImport = parsedMembers.length > 0 
+  const handleImportMembers = async (listOverride?: string, offsetOverride?: number) => {
+    const listToImport = listOverride || (parsedMembers.length > 0 
       ? parsedMembers.join(",") 
-      : importList;
+      : importList);
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     
     setIsImporting(true);
     setShouldStopImport(false);
+    setActiveImportId(selectedGroup.id);
+    localStorage.setItem("import_list_backup", listToImport);
+
     const allResults: any[] = [];
-    let currentOffset = 0;
+    let currentOffset = offsetOverride || 0;
     let hasMore = true;
     const BATCH_SIZE = 4;
     
     const rawUsers = listToImport.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
     const totalToProcess = rawUsers.length;
     
-    setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
+    if (!offsetOverride) {
+      setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
+    }
     setShowProgressWidget(true);
     setIsImportOpen(false);
 
@@ -392,7 +438,11 @@ export const GroupManagerView = () => {
         
         hasMore = data?.hasMore === true;
         currentOffset = data?.nextOffset ?? currentOffset + BATCH_SIZE;
+        localStorage.setItem("current_import_offset", currentOffset.toString());
       }
+      
+      setActiveImportId(null); // Clear active import tracking on finish
+
       
       const added = allResults.filter((r: any) => r.status === 'added').length;
       const errors = allResults.filter((r: any) => r.status === 'error');
@@ -1100,7 +1150,7 @@ export const GroupManagerView = () => {
                           </Button>
                         </div>
                         <Button 
-                          onClick={handleImportMembers} 
+                          onClick={() => handleImportMembers()} 
                           disabled={isImporting || isDryRunning || (parsedMembers.length === 0 && !importList.trim())}
                           className="w-full sm:min-w-[160px]"
                         >
