@@ -361,24 +361,29 @@ export const GroupManagerView = () => {
     }
   };
 
-  const handleImportMembers = async () => {
-    const listToImport = parsedMembers.length > 0 
+  const handleImportMembers = async (listOverride?: string, offsetOverride?: number) => {
+    const listToImport = listOverride || (parsedMembers.length > 0 
       ? parsedMembers.join(",") 
-      : importList;
+      : importList);
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     
     setIsImporting(true);
     setShouldStopImport(false);
+    setActiveImportId(selectedGroup.id);
+    localStorage.setItem("import_list_backup", listToImport);
+
     const allResults: any[] = [];
-    let currentOffset = 0;
+    let currentOffset = offsetOverride || 0;
     let hasMore = true;
     const BATCH_SIZE = 4;
     
     const rawUsers = listToImport.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
     const totalToProcess = rawUsers.length;
     
-    setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
+    if (!offsetOverride) {
+      setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
+    }
     setShowProgressWidget(true);
     setIsImportOpen(false);
 
