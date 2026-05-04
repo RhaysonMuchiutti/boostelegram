@@ -171,7 +171,23 @@ export const GroupManagerView = () => {
           limit: 100 // Smaller chunks for UI display
         }
       });
-      if (!error && data?.participants) {
+      if (error) {
+        const msg = (error as any)?.message || "";
+        if (msg.includes("CHAT_ADMIN_REQUIRED")) {
+          toast.error("Este grupo/canal só permite listar membros para administradores.");
+          setParticipants([]);
+          setHasMoreParticipants(false);
+          return;
+        }
+        throw error;
+      }
+      if (data?.error === 'admin_required') {
+        toast.error(data.message || "Sem permissão para listar membros deste grupo.");
+        setParticipants([]);
+        setHasMoreParticipants(false);
+        return;
+      }
+      if (data?.participants) {
         if (isLoadMore) {
           setParticipants(prev => [...prev, ...data.participants]);
           setParticipantsOffset(prev => prev + data.participants.length);
