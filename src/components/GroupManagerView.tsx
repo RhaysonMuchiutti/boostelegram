@@ -1150,7 +1150,7 @@ export const GroupManagerView = () => {
                           </Button>
                         </div>
                         <Button 
-                          onClick={handleImportMembers} 
+                          onClick={() => handleImportMembers()} 
                           disabled={isImporting || isDryRunning || (parsedMembers.length === 0 && !importList.trim())}
                           className="w-full sm:min-w-[160px]"
                         >
