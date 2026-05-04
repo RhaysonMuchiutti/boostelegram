@@ -505,6 +505,50 @@ serve(async (req) => {
       }
     }
 
+    if (action === 'resolve-group') {
+      const { groupLink } = body;
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        // Extract username from link if it's a link
+        let handle = groupLink.replace('https://t.me/', '').replace('@', '').split('/')[0];
+        
+        console.log(`Resolving group: ${handle}`);
+        const entity = await client.getEntity(handle);
+        
+        if (!(entity instanceof Api.Chat || entity instanceof Api.Channel)) {
+          throw new Error('O link fornecido não pertence a um grupo ou canal público.');
+        }
+
+        const groupInfo = {
+          id: entity.id.toString(),
+          title: (entity as any).title || "Sem título",
+          participantsCount: (entity as any).participantsCount || 0,
+          isChannel: entity instanceof Api.Channel,
+          isAdmin: (entity as any).adminRights !== null && (entity as any).adminRights !== undefined,
+          isCreator: (entity as any).creator || false
+        };
+
+        await client.disconnect();
+        return new Response(JSON.stringify({ group: groupInfo }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        throw e;
+      }
+    }
+
     if (action === 'remove-members') {
       const { groupId, userIds } = body;
       const { data: conn } = await supabaseAdminClient
