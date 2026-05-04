@@ -352,7 +352,7 @@ export const GroupManagerView = () => {
                              ) : (
                                <Users className="w-3 h-3 inline" />
                              )}
-                             {group.participantsCount} membros • {group.isAdmin ? "Admin" : "Membro"}
+                             {group.participantsCount} membros • {group.isChannel ? "Canal" : "Grupo"} • {group.isAdmin ? "Admin" : "Membro"}
                            </p>
                         </div>
                       </div>
