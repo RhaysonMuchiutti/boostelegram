@@ -354,6 +354,7 @@ serve(async (req) => {
     }
 
     if (action === 'get-participants') {
+      const { offset, limit: requestLimit } = body;
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
@@ -368,10 +369,16 @@ serve(async (req) => {
 
       try {
         await client.connect();
-        console.log(`Fetching participants for chat: ${chatId}`);
+        const fetchLimit = requestLimit || 500;
+        const fetchOffset = offset || 0;
         
-        // Use aggressive: true to get all participants if possible
-        const participants = await client.getParticipants(chatId, { limit: 500, aggressive: true });
+        console.log(`Fetching participants for chat: ${chatId}, offset: ${fetchOffset}, limit: ${fetchLimit}`);
+        
+        const participants = await client.getParticipants(chatId, { 
+          offset: fetchOffset, 
+          limit: fetchLimit,
+          aggressive: fetchLimit > 100 // Use aggressive only for larger chunks
+        });
         
         console.log(`Found ${participants.length} participants`);
         const result = participants.map((p: any) => {
@@ -385,8 +392,6 @@ serve(async (req) => {
             else if (type === 'UserStatusLastMonth') statusText = "Último mês";
           }
 
-          // In GramJS, the participant info (like date) might be in p.participant if it's a channel
-          // or we might not have it directly here depending on the chat type.
           return {
             id: p.id.toString(),
             username: p.username,
@@ -399,7 +404,10 @@ serve(async (req) => {
           };
         });
         await client.disconnect();
-        return new Response(JSON.stringify({ participants: result }), { 
+        return new Response(JSON.stringify({ 
+          participants: result,
+          hasMore: result.length === fetchLimit
+        }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       } catch (e: any) {
