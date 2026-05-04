@@ -630,7 +630,7 @@ export const GroupManagerView = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
-                  {isImporting ? "Adicionando Membros..." : shouldStopImport ? "Processamento Interrompido" : "Processamento Concluído"}
+                  {isImporting ? "Adicionando Membros..." : "Processamento Finalizado"}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {isImporting && (
