@@ -319,23 +319,27 @@ export const GroupManagerView = () => {
   };
 
   const handleImportMembers = async () => {
-    // Use parsedMembers if they exist, otherwise fallback to importList
     const listToImport = parsedMembers.length > 0 
       ? parsedMembers.join(",") 
       : importList;
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
-    setIsImporting(true);
     
+    setIsImporting(true);
     const allResults: any[] = [];
     let currentOffset = 0;
     let hasMore = true;
-    const BATCH_SIZE = 4; // ~4 users per call * ~30s = ~120s, safely under 150s limit
+    const BATCH_SIZE = 4;
     
+    const rawUsers = listToImport.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+    const totalToProcess = rawUsers.length;
+    
+    setImportProgress({ current: 0, total: totalToProcess, added: 0, failed: 0 });
+    setShowProgressWidget(true);
+    setIsImportOpen(false);
+
     try {
-      // Close dialog immediately so user sees progress in toast
-      setIsImportOpen(false);
-      toast.info("Iniciando adição de membros em lotes...");
+      toast.info(`Iniciando adição de ${totalToProcess} membros...`);
       
       while (hasMore) {
         const { data, error } = await supabase.functions.invoke("telegram-connector", {
@@ -358,8 +362,15 @@ export const GroupManagerView = () => {
         
         if (data?.results) {
           allResults.push(...data.results);
-          const addedSoFar = allResults.filter((r: any) => r.status === 'added').length;
-          toast.info(`Progresso: ${data.processed}/${data.total} processados (${addedSoFar} adicionados)`);
+          const addedBatch = data.results.filter((r: any) => r.status === 'added').length;
+          const failedBatch = data.results.filter((r: any) => r.status === 'error').length;
+          
+          setImportProgress(prev => ({
+            ...prev,
+            current: data.processed,
+            added: prev.added + addedBatch,
+            failed: prev.failed + failedBatch
+          }));
         }
         
         hasMore = data?.hasMore === true;
@@ -381,9 +392,13 @@ export const GroupManagerView = () => {
       setImportList("");
       setParsedMembers([]);
       fetchParticipants(selectedGroup.id);
+      
+      // Keep widget visible for 5 seconds after finish
+      setTimeout(() => setShowProgressWidget(false), 5000);
     } catch (err) {
       console.error("Erro ao importar membros:", err);
       toast.error("Falha na importação.");
+      setShowProgressWidget(false);
     } finally {
       setIsImporting(false);
     }
