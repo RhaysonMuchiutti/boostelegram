@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7"
 import { TelegramClient, Api } from "npm:telegram@2.22.2"
 import { StringSession } from "npm:telegram@2.22.2/sessions/index.js"
+import { delay } from "https://deno.land/std@0.168.0/async/delay.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
