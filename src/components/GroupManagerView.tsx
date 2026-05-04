@@ -590,14 +590,26 @@ export const GroupManagerView = () => {
                 </div>
               </div>
               {!isImporting && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full h-7 text-[10px] text-slate-500 hover:text-slate-700"
-                  onClick={() => setShowProgressWidget(false)}
-                >
-                  Fechar
-                </Button>
+                <div className="flex gap-2">
+                  {importProgress.failed > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => setIsFailuresDialogOpen(true)}
+                    >
+                      Revisar Falhas
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="flex-1 h-7 text-[10px] text-slate-500 hover:text-slate-700"
+                    onClick={() => setShowProgressWidget(false)}
+                  >
+                    Fechar
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
