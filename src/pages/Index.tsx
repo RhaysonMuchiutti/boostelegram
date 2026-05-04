@@ -9,6 +9,7 @@ import { TelegramInterface } from "@/components/TelegramInterface";
 import { AutomationRulesView } from "@/components/AutomationRulesView";
 import { TelegramSettingsView } from "@/components/TelegramSettingsView";
 import { GroupManagerView } from "@/components/GroupManagerView";
+import { NicheFinderView } from "@/components/NicheFinderView";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
