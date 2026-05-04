@@ -74,6 +74,8 @@ export const GroupManagerView = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [reviewSearchTerm, setReviewSearchTerm] = useState("");
   const [selectedReviewMembers, setSelectedReviewMembers] = useState<string[]>([]);
+  const [failedMembers, setFailedMembers] = useState<{user: string, error: string}[]>([]);
+  const [failedSearchTerm, setFailedSearchTerm] = useState("");
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
@@ -207,6 +209,19 @@ export const GroupManagerView = () => {
     }
   };
 
+  const retryFailedMember = (user: string) => {
+    setParsedMembers(prev => Array.from(new Set([...prev, user])));
+    setFailedMembers(prev => prev.filter(f => f.user !== user));
+    setIsImportOpen(true);
+  };
+
+  const retryAllFailed = () => {
+    const usersToRetry = failedMembers.map(f => f.user);
+    setParsedMembers(prev => Array.from(new Set([...prev, ...usersToRetry])));
+    setFailedMembers([]);
+    setIsImportOpen(true);
+  };
+
   const parseMembers = (text: string) => {
     // Split by comma, newline or space and clean up
     const rawMembers = text
@@ -294,9 +309,17 @@ export const GroupManagerView = () => {
       
       if (!error && data?.results) {
         const added = data.results.filter((r: any) => r.status === 'added').length;
-        const errors = data.results.filter((r: any) => r.status === 'error').length;
-        toast.success(`Processo finalizado: ${added} membros adicionados.`);
-        if (errors > 0) toast.error(`${errors} membros falharam.`);
+        const errors = data.results.filter((r: any) => r.status === 'error');
+        
+        if (added > 0) toast.success(`${added} membros adicionados.`);
+        
+        if (errors.length > 0) {
+          setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
+          toast.error(`${errors.length} membros falharam.`);
+        } else {
+          setFailedMembers([]);
+        }
+
         setImportList("");
         setParsedMembers([]);
         setIsImportOpen(false);
@@ -575,6 +598,91 @@ export const GroupManagerView = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {failedMembers.length > 0 && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="gap-2 border-red-200 text-red-600 hover:bg-red-50">
+                          <Info className="w-4 h-4" />
+                          Ver Falhas ({failedMembers.length})
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+                        <DialogHeader>
+                          <DialogTitle className="text-red-600 flex items-center gap-2">
+                            <Info className="w-5 h-5" />
+                            Membros que Falharam
+                          </DialogTitle>
+                          <CardDescription>
+                            Estes membros não puderam ser adicionados. Você pode ver o motivo e tentar novamente.
+                          </CardDescription>
+                        </DialogHeader>
+
+                        <div className="py-4 space-y-4 flex-1 overflow-hidden flex flex-col">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Filtrar por nome ou erro..."
+                              className="pl-8"
+                              value={failedSearchTerm}
+                              onChange={(e) => setFailedSearchTerm(e.target.value)}
+                            />
+                          </div>
+
+                          <ScrollArea className="flex-1 border rounded-md">
+                            <div className="p-1 divide-y">
+                              {failedMembers
+                                .filter(f => 
+                                  f.user.toLowerCase().includes(failedSearchTerm.toLowerCase()) || 
+                                  f.error.toLowerCase().includes(failedSearchTerm.toLowerCase())
+                                )
+                                .map((fail, idx) => (
+                                  <div key={idx} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                    <div className="min-w-0 flex-1 mr-4">
+                                      <p className="text-sm font-mono font-bold truncate">{fail.user}</p>
+                                      <p className="text-[11px] text-red-500 font-medium leading-tight mt-0.5">
+                                        {fail.error.includes('USER_PRIVACY_RESTRICTED') 
+                                          ? "Privacidade: Usuário não permite ser adicionado."
+                                          : fail.error.includes('FLOOD_WAIT')
+                                          ? "Limite atingido: Aguarde antes de tentar novamente."
+                                          : fail.error.includes('TIMEOUT')
+                                          ? "Tempo esgotado: Problema de conexão temporário."
+                                          : fail.error}
+                                      </p>
+                                    </div>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-8 text-xs text-primary hover:text-primary hover:bg-primary/10 shrink-0"
+                                      onClick={() => retryFailedMember(fail.user)}
+                                    >
+                                      Re-tentar
+                                    </Button>
+                                  </div>
+                                ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+
+                        <DialogFooter className="gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => setFailedMembers([])}
+                          >
+                            Limpar Lista
+                          </Button>
+                          <Button 
+                            className="flex-1 gap-2"
+                            onClick={retryAllFailed}
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Re-tentar Todos
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+
                   {selectedGroup.isAdmin && (
                     <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                       <DialogTrigger asChild>
