@@ -729,6 +729,37 @@ export const GroupManagerView = () => {
                       
                       <ScrollArea className="flex-1 pr-4">
                         <div className="space-y-6 py-4">
+                          {isDryRun && dryRunResults && (
+                            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                                  <Zap className="w-4 h-4" />
+                                  Resultado da Simulação
+                                </h4>
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => setIsDryRun(false)}>
+                                  Limpar
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="bg-white p-2 rounded-lg border border-primary/10 text-center">
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Válidos</p>
+                                  <p className="text-lg font-bold text-green-600">{dryRunResults.valid}</p>
+                                </div>
+                                <div className="bg-white p-2 rounded-lg border border-primary/10 text-center">
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Privados</p>
+                                  <p className="text-lg font-bold text-amber-600">{dryRunResults.restricted}</p>
+                                </div>
+                                <div className="bg-white p-2 rounded-lg border border-primary/10 text-center">
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Dúvida</p>
+                                  <p className="text-lg font-bold text-slate-400">{dryRunResults.unknown}</p>
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground italic text-center">
+                                * Valores estimados com base na saúde da lista. A execução real pode variar.
+                              </p>
+                            </div>
+                          )}
+
                           <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-2">
                               <Label className="text-sm font-semibold">Importar de Arquivo</Label>
