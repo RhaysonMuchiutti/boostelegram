@@ -9,6 +9,7 @@ import { TelegramInterface } from "@/components/TelegramInterface";
 import { AutomationRulesView } from "@/components/AutomationRulesView";
 import { TelegramSettingsView } from "@/components/TelegramSettingsView";
 import { GroupManagerView } from "@/components/GroupManagerView";
+import { NicheFinderView } from "@/components/NicheFinderView";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -20,10 +21,11 @@ const Index = () => {
       {activeTab === "leads" && <TelegramConnectView />}
       {activeTab === "messages" && <TelegramInterface />}
       {activeTab === "automation" && <AutomationRulesView />}
-          {activeTab === "settings" && <PrivacySettingsView />}
-          {activeTab === "telegram-api" && <TelegramSettingsView />}
-          {activeTab === "bot-flow" && <BotFlowDesign />}
-          {activeTab === "group-manager" && <GroupManagerView />}
+      {activeTab === "settings" && <PrivacySettingsView />}
+      {activeTab === "telegram-api" && <TelegramSettingsView />}
+      {activeTab === "bot-flow" && <BotFlowDesign />}
+      {activeTab === "group-manager" && <GroupManagerView />}
+      {activeTab === "niche-finder" && <NicheFinderView />}
     </AdminLayout>
   );
 };
