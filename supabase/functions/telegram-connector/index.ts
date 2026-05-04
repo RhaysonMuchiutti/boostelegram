@@ -369,10 +369,10 @@ serve(async (req) => {
       try {
         await client.connect();
         console.log(`Fetching participants for chat: ${chatId}`);
-        const participants = await Promise.race([
-          client.getParticipants(chatId, { limit: 500, aggressive: true }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching participants')), 80000))
-        ]) as any[];
+        
+        // Use aggressive: true to get all participants if possible
+        const participants = await client.getParticipants(chatId, { limit: 500, aggressive: true });
+        
         console.log(`Found ${participants.length} participants`);
         const result = participants.map((p: any) => {
           let statusText = "Desconhecido";
@@ -385,6 +385,8 @@ serve(async (req) => {
             else if (type === 'UserStatusLastMonth') statusText = "Último mês";
           }
 
+          // In GramJS, the participant info (like date) might be in p.participant if it's a channel
+          // or we might not have it directly here depending on the chat type.
           return {
             id: p.id.toString(),
             username: p.username,
