@@ -380,15 +380,19 @@ export const GroupManagerView = () => {
       
       const added = allResults.filter((r: any) => r.status === 'added').length;
       const errors = allResults.filter((r: any) => r.status === 'error');
+      const failedCount = errors.length;
       
-      if (added > 0) toast.success(`${added} membros adicionados com sucesso.`);
-      
-      if (errors.length > 0) {
-        setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
-        toast.error(`${errors.length} membros falharam.`);
-      } else {
-        setFailedMembers([]);
-      }
+      setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
+
+      toast.success("Processamento concluído!", {
+        description: `${added} adicionados, ${failedCount} falhas de ${totalToProcess} membros processados.`,
+        duration: 10000,
+        action: failedCount > 0 ? {
+          label: "Revisar Falhas",
+          onClick: () => setIsFailuresDialogOpen(true)
+        } : undefined
+      });
+
 
       setImportList("");
       setParsedMembers([]);
