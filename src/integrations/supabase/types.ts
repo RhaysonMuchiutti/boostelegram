@@ -95,6 +95,83 @@ export type Database = {
         }
         Relationships: []
       }
+      niche_categories: {
+        Row: {
+          created_at: string
+          id: string
+          keywords: string[]
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keywords: string[]
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keywords?: string[]
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scraped_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean | null
+          last_scraped_at: string | null
+          member_count: number | null
+          niche_id: string | null
+          telegram_id: string | null
+          title: string
+          type: string | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_scraped_at?: string | null
+          member_count?: number | null
+          niche_id?: string | null
+          telegram_id?: string | null
+          title: string
+          type?: string | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_scraped_at?: string | null
+          member_count?: number | null
+          niche_id?: string | null
+          telegram_id?: string | null
+          title?: string
+          type?: string | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraped_groups_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_connections: {
         Row: {
           created_at: string
