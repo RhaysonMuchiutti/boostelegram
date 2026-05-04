@@ -345,10 +345,15 @@ export const GroupManagerView = () => {
                           <Users className="w-5 h-5 text-primary" />
                         </div>
                         <div className="overflow-hidden">
-                          <p className="font-semibold text-sm truncate">{group.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {group.participantsCount} membros • {group.isChannel ? "Canal" : "Grupo"}
-                          </p>
+                           <p className="font-semibold text-sm truncate">{group.title}</p>
+                           <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                             {group.isAdmin ? (
+                               <Shield className="w-3 h-3 text-primary inline" />
+                             ) : (
+                               <Users className="w-3 h-3 inline" />
+                             )}
+                             {group.participantsCount} membros • {group.isAdmin ? "Admin" : "Membro"}
+                           </p>
                         </div>
                       </div>
                       <ChevronRight className={cn(
