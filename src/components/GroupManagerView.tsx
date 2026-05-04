@@ -228,8 +228,8 @@ export const GroupManagerView = () => {
   const parseMembers = (text: string) => {
     // Split by comma, newline or space and clean up
     const rawMembers = text
-      .split(/[,\n\s]+/)
-      .map(m => m.trim())
+      .split(/[,\n\s;]+/)
+      .map(m => m.trim().replace(/^["']|["']$/g, '').trim()) // Remove leading/trailing quotes
       .filter(m => m.length > 0);
     
     // Identify and filter out duplicates
