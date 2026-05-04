@@ -1036,13 +1036,15 @@ serve(async (req) => {
         // Telegram global search works best with single words or short phrases
         for (const keyword of keywords) {
           try {
+            console.log(`[SCRAPE] Searching for: ${keyword}`);
             // Using search with a reasonable limit per keyword
             const result = await client.invoke(new Api.contacts.Search({
               q: keyword,
-              limit: 20
+              limit: 50
             }));
 
             const chats = result.chats || [];
+            console.log(`[SCRAPE] Found ${chats.length} potential results for ${keyword}`);
             
             for (const chat of chats) {
               const entity = chat as any;
