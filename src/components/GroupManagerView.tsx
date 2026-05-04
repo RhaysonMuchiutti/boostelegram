@@ -402,6 +402,40 @@ export const GroupManagerView = () => {
                         Participantes ({participants.length})
                       </h4>
                       <div className="flex items-center gap-2">
+                        <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Configurar Exportação ({exportFormat.toUpperCase()})</DialogTitle>
+                              <CardDescription>
+                                Selecione quais dados você deseja incluir no arquivo.
+                              </CardDescription>
+                            </DialogHeader>
+                            <div className="grid grid-cols-2 gap-4 py-4">
+                              {exportColumns.map((column) => (
+                                <div key={column.id} className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`col-${column.id}`} 
+                                    checked={selectedColumns.includes(column.id)}
+                                    onCheckedChange={() => toggleColumn(column.id)}
+                                  />
+                                  <Label 
+                                    htmlFor={`col-${column.id}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {column.label}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancelar</Button>
+                              <Button onClick={handleExport}>
+                                Confirmar e Exportar
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-2">
@@ -410,11 +444,11 @@ export const GroupManagerView = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                            <DropdownMenuItem onClick={() => { setExportFormat("csv"); setIsExportDialogOpen(true); }} className="gap-2 cursor-pointer">
                               <Table className="w-4 h-4" />
                               Exportar CSV
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                            <DropdownMenuItem onClick={() => { setExportFormat("pdf"); setIsExportDialogOpen(true); }} className="gap-2 cursor-pointer">
                               <FileText className="w-4 h-4" />
                               Exportar PDF
                             </DropdownMenuItem>
