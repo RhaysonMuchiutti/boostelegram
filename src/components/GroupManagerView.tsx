@@ -610,6 +610,32 @@ export const GroupManagerView = () => {
     }
   };
 
+  const downloadImportReport = (results: any[]) => {
+    if (results.length === 0) return;
+    
+    const headers = ["Username/ID", "Status", "Mensagem de Erro"];
+    const csvContent = [
+      headers.join(","),
+      ...results.map(r => [
+        `"${r.user}"`,
+        `"${r.status === 'added' ? 'Adicionado' : 'Falha'}"`,
+        `"${r.error || ''}"`
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `relatorio_importacao_${selectedGroup?.title || "telegram"}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.appendChild(link);
+    document.body.removeChild(link);
+    toast.success("Relatório CSV baixado!");
+  };
+
   const toggleColumn = (columnId: string) => {
     setSelectedColumns(prev => 
       prev.includes(columnId) 
