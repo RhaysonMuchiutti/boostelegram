@@ -88,6 +88,7 @@ export const GroupManagerView = () => {
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, added: 0, failed: 0 });
   const [showProgressWidget, setShowProgressWidget] = useState(false);
+  const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
 
   const init = async () => {
     setIsLoading(true);
@@ -379,15 +380,19 @@ export const GroupManagerView = () => {
       
       const added = allResults.filter((r: any) => r.status === 'added').length;
       const errors = allResults.filter((r: any) => r.status === 'error');
+      const failedCount = errors.length;
       
-      if (added > 0) toast.success(`${added} membros adicionados com sucesso.`);
-      
-      if (errors.length > 0) {
-        setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
-        toast.error(`${errors.length} membros falharam.`);
-      } else {
-        setFailedMembers([]);
-      }
+      setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
+
+      toast.success("Processamento concluído!", {
+        description: `${added} adicionados, ${failedCount} falhas de ${totalToProcess} membros processados.`,
+        duration: 10000,
+        action: failedCount > 0 ? {
+          label: "Revisar Falhas",
+          onClick: () => setIsFailuresDialogOpen(true)
+        } : undefined
+      });
+
 
       setImportList("");
       setParsedMembers([]);
@@ -585,14 +590,26 @@ export const GroupManagerView = () => {
                 </div>
               </div>
               {!isImporting && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full h-7 text-[10px] text-slate-500 hover:text-slate-700"
-                  onClick={() => setShowProgressWidget(false)}
-                >
-                  Fechar
-                </Button>
+                <div className="flex gap-2">
+                  {importProgress.failed > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => setIsFailuresDialogOpen(true)}
+                    >
+                      Revisar Falhas
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="flex-1 h-7 text-[10px] text-slate-500 hover:text-slate-700"
+                    onClick={() => setShowProgressWidget(false)}
+                  >
+                    Fechar
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -719,7 +736,7 @@ export const GroupManagerView = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {failedMembers.length > 0 && (
-                    <Dialog>
+                    <Dialog open={isFailuresDialogOpen} onOpenChange={setIsFailuresDialogOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" className="gap-2 border-red-200 text-red-600 hover:bg-red-50">
                           <Info className="w-4 h-4" />
@@ -787,7 +804,10 @@ export const GroupManagerView = () => {
                           <Button 
                             variant="outline" 
                             className="flex-1"
-                            onClick={() => setFailedMembers([])}
+                             onClick={() => {
+                               setFailedMembers([]);
+                               setIsFailuresDialogOpen(false);
+                             }}
                           >
                             Limpar Lista
                           </Button>
