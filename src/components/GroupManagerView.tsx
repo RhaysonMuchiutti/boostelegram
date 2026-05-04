@@ -13,7 +13,10 @@ import {
   ChevronRight,
   Shield,
   Zap,
-  Info
+  Info,
+  FileDown,
+  FileText,
+  Table
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +44,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const GroupManagerView = () => {
   const [myGroups, setMyGroups] = useState<any[]>([]);
@@ -149,6 +154,59 @@ export const GroupManagerView = () => {
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    if (participants.length === 0) {
+      toast.error("Não há participantes para exportar.");
+      return;
+    }
+
+    const headers = ["ID", "Nome", "Sobrenome", "Username"];
+    const csvContent = [
+      headers.join(","),
+      ...participants.map(p => [
+        p.id,
+        `"${p.firstName || ""}"`,
+        `"${p.lastName || ""}"`,
+        p.username ? `@${p.username}` : ""
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `participantes_${selectedGroup?.title || "grupo"}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("CSV exportado com sucesso!");
+  };
+
+  const handleExportPDF = () => {
+    if (participants.length === 0) {
+      toast.error("Não há participantes para exportar.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const tableColumn = ["ID", "Nome", "Username"];
+    const tableRows = participants.map(p => [
+      p.id,
+      `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+      p.username ? `@${p.username}` : "N/A"
+    ]);
+
+    doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+    doc.save(`participantes_${selectedGroup?.title || "grupo"}.pdf`);
+    toast.success("PDF exportado com sucesso!");
   };
 
   const filteredGroups = myGroups.filter(g => 
@@ -317,10 +375,30 @@ export const GroupManagerView = () => {
                         <Users className="w-4 h-4" />
                         Participantes ({participants.length})
                       </h4>
-                      <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)}>
-                        <RefreshCw className={cn("w-3 h-3 mr-2", isLoadingParticipants && "animate-spin")} />
-                        Atualizar
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-2">
+                              <FileDown className="w-3 h-3" />
+                              Exportar
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                              <Table className="w-4 h-4" />
+                              Exportar CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                              <FileText className="w-4 h-4" />
+                              Exportar PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)}>
+                          <RefreshCw className={cn("w-3 h-3 mr-2", isLoadingParticipants && "animate-spin")} />
+                          Atualizar
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="space-y-2">
