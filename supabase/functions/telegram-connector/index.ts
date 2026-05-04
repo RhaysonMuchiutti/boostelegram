@@ -472,24 +472,47 @@ serve(async (req) => {
 
           while (attempts < maxAttempts && !added) {
             try {
-              console.log(`[ADD_MEMBERS] Resolving entity for: ${userHandle}...`);
-              const entity = await client.getEntity(userHandle);
-              console.log(`[ADD_MEMBERS] Entity resolved: ${entity.id} (username: ${(entity as any).username})`);
+              console.log(`[ADD_MEMBERS] Attempting to add: ${userHandle}...`);
               
+              // Helper to attempt invite with a specific identifier
+              const attemptInvite = async (identifier: string) => {
+                if (groupEntity instanceof Api.Chat) {
+                  return await client.invoke(new Api.messages.AddChatUser({
+                    chatId: groupEntity.id,
+                    userId: identifier,
+                    fwdLimit: 0
+                  }));
+                } else {
+                  return await client.invoke(new Api.channels.InviteToChannel({
+                    channel: groupEntity,
+                    users: [identifier]
+                  }));
+                }
+              };
+
               let inviteResult;
-              if (groupEntity instanceof Api.Chat) {
-                console.log(`[ADD_MEMBERS] Using messages.AddChatUser for legacy group`);
-                inviteResult = await client.invoke(new Api.messages.AddChatUser({
-                  chatId: groupEntity.id,
-                  userId: userHandle, // Let GramJS handle resolving the string/handle directly
-                  fwdLimit: 0
-                }));
-              } else {
-                console.log(`[ADD_MEMBERS] Using channels.InviteToChannel for supergroup/channel`);
-                inviteResult = await client.invoke(new Api.channels.InviteToChannel({
-                  channel: groupEntity,
-                  users: [userHandle] // Let GramJS handle resolving the string/handle directly
-                }));
+              try {
+                // Primary attempt: using whatever handle was provided
+                inviteResult = await attemptInvite(userHandle);
+              } catch (primaryError: any) {
+                // If it fails with entity error and we have an ID that looks numeric, 
+                // but the user might have a username we can try to resolve first
+                if (primaryError.message.includes('Could not find the input entity')) {
+                  console.log(`[ADD_MEMBERS] Entity resolution failed for ${userHandle}. Checking for username fallback...`);
+                  
+                  // If the user handle is just a number, we might be stuck, 
+                  // but if it's a string, we try to ensure it has @ or resolve it explicitly
+                  let fallbackHandle = userHandle;
+                  if (!userHandle.startsWith('@') && isNaN(Number(userHandle))) {
+                    fallbackHandle = `@${userHandle}`;
+                    console.log(`[ADD_MEMBERS] Retrying with @ prefix: ${fallbackHandle}`);
+                    inviteResult = await attemptInvite(fallbackHandle);
+                  } else {
+                    throw primaryError; // Re-throw if no obvious fallback
+                  }
+                } else {
+                  throw primaryError;
+                }
               }
               
               console.log(`[ADD_MEMBERS] Invite result for ${userHandle}:`, JSON.stringify(inviteResult));
