@@ -191,15 +191,31 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json()
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const { action, apiId, apiHash, chatId, message, limit, offsetId } = body
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const authHeader = req.headers.get('Authorization')!
+    const authHeader = req.headers.get('Authorization')
     
+    if (!authHeader && action !== 'check-status') {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const supabaseUserClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: { Authorization: authHeader || '' } }
     })
 
     const supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -207,7 +223,12 @@ serve(async (req) => {
     })
 
     const { data: { user }, error: authError } = await supabaseUserClient.auth.getUser()
-    if (authError || !user) throw new Error('Unauthorized')
+    if ((authError || !user) && action !== 'check-status') {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
 
     if (action === 'start-qr') {
       console.log(`Starting QR for user ${user.id}`)
