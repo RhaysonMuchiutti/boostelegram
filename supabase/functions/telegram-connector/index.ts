@@ -437,7 +437,9 @@ serve(async (req) => {
       if (!conn?.session_string) throw new Error('No session');
 
       const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
-        connectionRetries: 1,
+        connectionRetries: 5,
+        requestRetries: 3,
+        timeout: 30000,
       });
 
       try {
