@@ -164,6 +164,13 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
               onClick={() => setActiveTab("automation")}
             />
             <SidebarItem 
+              icon={List} 
+              label="Gerenciar Grupos" 
+              active={activeTab === "group-manager"}
+              collapsed={isCollapsed}
+              onClick={() => setActiveTab("group-manager")}
+            />
+            <SidebarItem 
               icon={Settings} 
               label="Configurações" 
               active={activeTab === "settings"}
@@ -225,6 +232,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             <SidebarItem icon={Target} label="Campanhas" active={activeTab === "campaigns"} onClick={() => { setActiveTab("campaigns"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={Users} label="Leads" active={activeTab === "leads"} onClick={() => { setActiveTab("leads"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={MessageSquare} label="Mensagens" active={activeTab === "messages"} onClick={() => { setActiveTab("messages"); setIsSidebarOpen(false); }} />
+            <SidebarItem icon={List} label="Gerenciar Grupos" active={activeTab === "group-manager"} onClick={() => { setActiveTab("group-manager"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={Settings} label="Configurações" active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} />
           </nav>
           <div className="pt-6 mt-6 border-t border-border">
