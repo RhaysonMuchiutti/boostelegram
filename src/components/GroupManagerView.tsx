@@ -64,7 +64,9 @@ export const GroupManagerView = () => {
   const [creds, setCreds] = useState<any>(null);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
-  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [isLoadingParticipants, setIsLoadingParticipants] = false;
+  const [hasMoreParticipants, setHasMoreParticipants] = useState(false);
+  const [participantsOffset, setParticipantsOffset] = useState(0);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importList, setImportList] = useState("");
   const [isImporting, setIsImporting] = useState(false);
@@ -72,6 +74,8 @@ export const GroupManagerView = () => {
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
+  const [isExportingData, setIsExportingData] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const [groupLink, setGroupLink] = useState("");
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
 
