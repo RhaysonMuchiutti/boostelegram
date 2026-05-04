@@ -64,7 +64,7 @@ export const GroupManagerView = () => {
   const [creds, setCreds] = useState<any>(null);
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
-  const [isLoadingParticipants, setIsLoadingParticipants] = false;
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [hasMoreParticipants, setHasMoreParticipants] = useState(false);
   const [participantsOffset, setParticipantsOffset] = useState(0);
   const [isImportOpen, setIsImportOpen] = useState(false);
