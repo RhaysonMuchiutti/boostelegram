@@ -11,38 +11,46 @@ const corsHeaders = {
 
 // Helper to log steps in the DB
 async function logStep(supabaseClient: any, userId: string, step: string, details: any = {}) {
-  const { data } = await supabaseClient
-    .from('telegram_connections')
-    .select('step_logs')
-    .eq('user_id', userId)
-    .maybeSingle();
-  
-  const currentLogs = data?.step_logs || [];
-  const newLog = {
-    step,
-    timestamp: new Date().toISOString(),
-    ...details
-  };
-  
-  await supabaseClient
-    .from('telegram_connections')
-    .update({ 
-      step_logs: [...currentLogs, newLog],
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
+  try {
+    const { data } = await supabaseClient
+      .from('telegram_connections')
+      .select('step_logs')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    const currentLogs = data?.step_logs || [];
+    const newLog = {
+      step,
+      timestamp: new Date().toISOString(),
+      ...details
+    };
+    
+    await supabaseClient
+      .from('telegram_connections')
+      .update({ 
+        step_logs: [...currentLogs, newLog],
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+  } catch (err) {
+    console.error("[LOG_STEP_ERROR]", err);
+  }
 }
 
 // Helper for audit logs
 async function logAudit(supabaseClient: any, userId: string, status: string, reason?: string, details: any = {}) {
-  await supabaseClient
-    .from('connection_audit_logs')
-    .insert({
-      user_id: userId,
-      status,
-      reason,
-      details
-    });
+  try {
+    await supabaseClient
+      .from('connection_audit_logs')
+      .insert({
+        user_id: userId,
+        status,
+        reason,
+        details
+      });
+  } catch (err) {
+    console.error("[LOG_AUDIT_ERROR]", err);
+  }
 }
 
 // Helper to process import in background
@@ -166,7 +174,14 @@ async function processBackgroundImport(supabaseAdminClient: any, taskId: string,
     await client.disconnect();
   } catch (err: any) {
     console.error(`[BG_IMPORT] Fatal error in task ${taskId}:`, err);
-    await supabaseAdminClient.from('import_tasks').update({ status: 'failed', error_message: err.message }).eq('id', taskId);
+    let errorMessage = err.message;
+    if (err.message.includes('RPC_CALL_FAIL')) errorMessage = 'Falha na comunicação com o Telegram.';
+    if (err.message.includes('AUTH_KEY_UNREGISTERED')) errorMessage = 'Sessão expirada. Por favor, reconecte.';
+    
+    await supabaseAdminClient.from('import_tasks').update({ 
+      status: 'failed', 
+      error_message: errorMessage 
+    }).eq('id', taskId);
   }
 }
 
