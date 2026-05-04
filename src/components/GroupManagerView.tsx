@@ -500,7 +500,7 @@ export const GroupManagerView = () => {
         <Card className="md:col-span-2 flex flex-col min-h-0 overflow-hidden shadow-sm border-slate-200">
           {selectedGroup ? (
             <>
-              <CardHeader className="p-6 border-b flex flex-row items-center justify-between shrink-0">
+              <CardHeader className="p-4 sm:p-6 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
                     <Users className="w-6 h-6" />
