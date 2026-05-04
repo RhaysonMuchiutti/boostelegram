@@ -345,6 +345,11 @@ export const GroupManagerView = () => {
       toast.info(`Iniciando adição de ${totalToProcess} membros...`);
       
       while (hasMore) {
+        if (shouldStopImport) {
+          toast.info("Importação interrompida pelo usuário.");
+          break;
+        }
+
         const { data, error } = await supabase.functions.invoke("telegram-connector", {
           body: { 
             action: "add-members", 
