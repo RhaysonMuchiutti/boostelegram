@@ -72,6 +72,7 @@ export const GroupManagerView = () => {
   const [parsedMembers, setParsedMembers] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [shouldStopImport, setShouldStopImport] = useState(false);
   const [reviewSearchTerm, setReviewSearchTerm] = useState("");
   const [selectedReviewMembers, setSelectedReviewMembers] = useState<string[]>([]);
   const [failedMembers, setFailedMembers] = useState<{user: string, error: string}[]>([]);
