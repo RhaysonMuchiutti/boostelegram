@@ -481,14 +481,14 @@ serve(async (req) => {
                 console.log(`[ADD_MEMBERS] Using messages.AddChatUser for legacy group`);
                 inviteResult = await client.invoke(new Api.messages.AddChatUser({
                   chatId: groupEntity.id,
-                  userId: entity,
+                  userId: userHandle, // Let GramJS handle resolving the string/handle directly
                   fwdLimit: 0
                 }));
               } else {
                 console.log(`[ADD_MEMBERS] Using channels.InviteToChannel for supergroup/channel`);
                 inviteResult = await client.invoke(new Api.channels.InviteToChannel({
                   channel: groupEntity,
-                  users: [entity]
+                  users: [userHandle] // Let GramJS handle resolving the string/handle directly
                 }));
               }
               
@@ -703,17 +703,16 @@ serve(async (req) => {
         
         for (const userHandle of usersToAdd) {
           try {
-            const userEntity = await client.getEntity(userHandle);
             if (groupEntity instanceof Api.Chat) {
               await client.invoke(new Api.messages.AddChatUser({
                 chatId: groupEntity.id,
-                userId: userEntity,
+                userId: userHandle,
                 fwdLimit: 0
               }));
             } else {
               await client.invoke(new Api.channels.InviteToChannel({
                 channel: groupEntity,
-                users: [userEntity]
+                users: [userHandle]
               }));
             }
             results.added.push({ user: userHandle, status: 'added' });
