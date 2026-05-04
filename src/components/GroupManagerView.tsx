@@ -344,18 +344,19 @@ export const GroupManagerView = () => {
     try {
       toast.info(`Iniciando adição de ${totalToProcess} membros...`);
       
-      while (hasMore) {
-        // We use a functional update or a ref to check the latest value in the loop
-        let currentStopValue = false;
-        setShouldStopImport(prev => {
-          currentStopValue = prev;
-          return prev;
+      let stopImport = false;
+      while (hasMore && !stopImport) {
+        // Read latest state using a promise/callback pattern to avoid stale closure issues in the loop
+        const checkStatus = () => new Promise<boolean>(resolve => {
+          setShouldStopImport(prev => {
+            resolve(prev);
+            return prev;
+          });
         });
+        
+        stopImport = await checkStatus();
+        if (stopImport) break;
 
-        if (currentStopValue) {
-          toast.info("Importação interrompida.");
-          break;
-        }
 
 
         const { data, error } = await supabase.functions.invoke("telegram-connector", {
