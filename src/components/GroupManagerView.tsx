@@ -971,7 +971,8 @@ export const GroupManagerView = () => {
                             `Adicionar ${parsedMembers.length || ""} Membros`
                           )}
                         </Button>
-                      </DialogFooter>
+                        </DialogFooter>
+                      </div>
                     </DialogContent>
                   </Dialog>
                 )}
