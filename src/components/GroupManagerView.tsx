@@ -481,9 +481,24 @@ export const GroupManagerView = () => {
                               </div>
                               <div>
                                 <p className="text-sm font-semibold">{p.firstName} {p.lastName}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {p.username ? `@${p.username}` : "Sem username"}
-                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {p.username && (
+                                    <span className="text-xs text-muted-foreground">@{p.username}</span>
+                                  )}
+                                  {p.status && (
+                                    <span className={cn(
+                                      "text-[10px] px-1.5 py-0.5 rounded-full",
+                                      p.status === "Online" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                                    )}>
+                                      {p.status}
+                                    </span>
+                                  )}
+                                  {p.joinedDate && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Entrou em: {new Date(p.joinedDate).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 hover:bg-red-50">
