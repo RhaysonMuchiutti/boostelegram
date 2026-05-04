@@ -266,25 +266,32 @@ export const GroupManagerView = () => {
           apiHash: creds.api_hash,
           chatId: groupId,
           offset,
-          limit: 100 // Smaller chunks for UI display
+          limit: 100
         }
       });
+
       if (error) {
+        console.error("Participants fetch error:", error);
         const msg = (error as any)?.message || "";
         if (msg.includes("CHAT_ADMIN_REQUIRED")) {
-          toast.error("Este grupo/canal só permite listar membros para administradores.");
-          setParticipants([]);
-          setHasMoreParticipants(false);
-          return;
+          toast.error("Permissão de administrador necessária para listar membros.");
+        } else if (msg.includes("CHANNEL_PRIVATE")) {
+          toast.error("Este canal é privado e você não é membro ou administrador.");
+        } else {
+          toast.error("Erro ao carregar lista de participantes.");
         }
-        throw error;
-      }
-      if (data?.error === 'admin_required') {
-        toast.error(data.message || "Sem permissão para listar membros deste grupo.");
         setParticipants([]);
         setHasMoreParticipants(false);
         return;
       }
+
+      if (data?.error === 'admin_required') {
+        toast.error(data.message || "Apenas administradores podem ver a lista de membros.");
+        setParticipants([]);
+        setHasMoreParticipants(false);
+        return;
+      }
+
       if (data?.participants) {
         if (isLoadMore) {
           setParticipants(prev => [...prev, ...data.participants]);
@@ -296,7 +303,8 @@ export const GroupManagerView = () => {
         setHasMoreParticipants(data.hasMore);
       }
     } catch (err) {
-      console.error("Erro ao buscar participantes:", err);
+      console.error("Exception fetching participants:", err);
+      toast.error("Ocorreu uma falha na comunicação com o servidor.");
     } finally {
       setIsLoadingParticipants(false);
     }
