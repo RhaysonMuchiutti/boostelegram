@@ -111,7 +111,7 @@ export const NicheFinderView = () => {
         <Button onClick={() => setIsAddingNiche(!isAddingNiche)} variant="outline" size="sm" className="gap-2">
           <Plus className="w-4 h-4" />
           Novo Nicho
-        </h2Button>
+        </Button>
       </div>
 
       {isAddingNiche && (
