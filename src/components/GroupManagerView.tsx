@@ -98,6 +98,7 @@ export const GroupManagerView = () => {
     return localStorage.getItem("active_import_id") || null;
   });
   const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
+  const [importResults, setImportResults] = useState<any[]>([]);
 
   const init = async () => {
     setIsLoading(true);
