@@ -1009,7 +1009,74 @@ serve(async (req) => {
       }
     }
 
-  } catch (error: any) {
+    if (action === 'scrape-niche-groups') {
+      const { nicheId, keywords } = body;
+      const { data: conn } = await supabaseAdminClient
+        .from('telegram_connections')
+        .select('session_string')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!conn?.session_string) throw new Error('No session');
+
+      const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
+        connectionRetries: 1,
+      });
+
+      try {
+        await client.connect();
+        let foundCount = 0;
+        
+        // Telegram global search works best with single words or short phrases
+        for (const keyword of keywords) {
+          try {
+            // Using search with a reasonable limit per keyword
+            const result = await client.invoke(new Api.contacts.Search({
+              q: keyword,
+              limit: 20
+            }));
+
+            const chats = result.chats || [];
+            
+            for (const chat of chats) {
+              const entity = chat as any;
+              // Only interested in public groups/channels
+              if (entity.username) {
+                const memberCount = entity.participantsCount || 0;
+                
+                // Upsert into scraped_groups
+                const { error: upsertError } = await supabaseAdminClient
+                  .from('scraped_groups')
+                  .upsert({
+                    niche_id: nicheId,
+                    title: entity.title,
+                    username: entity.username,
+                    description: entity.about || "",
+                    member_count: memberCount,
+                    type: entity.className === 'Channel' ? (entity.broadcast ? 'channel' : 'group') : 'group',
+                    telegram_id: entity.id.toString()
+                  }, { onConflict: 'telegram_id' });
+                
+                if (!upsertError) foundCount++;
+              }
+            }
+          } catch (keywordError) {
+            console.error(`Error searching keyword "${keyword}":`, keywordError);
+            // Continue with next keyword
+          }
+        }
+
+        await client.disconnect();
+        return new Response(JSON.stringify({ success: true, count: foundCount }), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      } catch (e: any) {
+        try { await client.disconnect(); } catch {}
+        throw e;
+      }
+    }
+
+
     console.error("Function Error:", error)
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 
