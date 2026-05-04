@@ -87,8 +87,16 @@ export const GroupManagerView = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [groupLink, setGroupLink] = useState("");
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
-  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, added: 0, failed: 0 });
-  const [showProgressWidget, setShowProgressWidget] = useState(false);
+  const [importProgress, setImportProgress] = useState(() => {
+    const saved = localStorage.getItem("import_progress");
+    return saved ? JSON.parse(saved) : { current: 0, total: 0, added: 0, failed: 0 };
+  });
+  const [showProgressWidget, setShowProgressWidget] = useState(() => {
+    return localStorage.getItem("show_progress_widget") === "true";
+  });
+  const [activeImportId, setActiveImportId] = useState(() => {
+    return localStorage.getItem("active_import_id") || null;
+  });
   const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
 
   const init = async () => {
