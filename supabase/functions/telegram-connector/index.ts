@@ -463,9 +463,10 @@ serve(async (req) => {
 
           while (attempts < maxAttempts && !added) {
             try {
+              const entity = await client.getEntity(userHandle);
               await client.invoke(new Api.channels.InviteToChannel({
                 channel: groupId,
-                users: [userHandle]
+                users: [entity]
               }));
               results.push({ user: userHandle, status: 'added' });
               added = true;
