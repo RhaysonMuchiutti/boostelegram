@@ -374,15 +374,24 @@ export const GroupManagerView = () => {
 
       if (exportFormat === "csv") {
         const headers = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label);
+        
+        // Filter out participants without a first name (meaning they probably only have a username or ID)
+        const validParticipants = allParticipants.filter(p => p.firstName && p.firstName.trim() !== "");
+        const filteredCount = allParticipants.length - validParticipants.length;
+
         const csvContent = [
           headers.join(","),
-          ...allParticipants.map(p => selectedColumns.map(colId => {
+          ...validParticipants.map(p => selectedColumns.map(colId => {
             let value = p[colId] || "";
             if (colId === "username" && value) value = `@${value}`;
             if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
             return `"${value}"`;
           }).join(","))
         ].join("\n");
+        
+        if (filteredCount > 0) {
+          toast.info(`${filteredCount} membros sem nome foram ignorados na exportação.`);
+        }
 
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const link = document.createElement("a");
@@ -396,12 +405,21 @@ export const GroupManagerView = () => {
       } else {
         const doc = new jsPDF();
         const tableColumn = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label || "");
-        const tableRows = allParticipants.map(p => selectedColumns.map(colId => {
+        
+        // Filter out participants without a first name for PDF as well
+        const validParticipants = allParticipants.filter(p => p.firstName && p.firstName.trim() !== "");
+        const filteredCount = allParticipants.length - validParticipants.length;
+
+        const tableRows = validParticipants.map(p => selectedColumns.map(colId => {
           let value = p[colId] || "";
           if (colId === "username" && value) value = `@${value}`;
           if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
           return value;
         }));
+
+        if (filteredCount > 0 && exportFormat === "pdf") {
+          toast.info(`${filteredCount} membros sem nome foram ignorados na exportação.`);
+        }
 
         doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
         autoTable(doc, {
