@@ -156,20 +156,30 @@ export const GroupManagerView = () => {
     }
   };
 
-  const fetchParticipants = async (groupId: string) => {
+  const fetchParticipants = async (groupId: string, isLoadMore = false) => {
     if (!creds) return;
     setIsLoadingParticipants(true);
+    const offset = isLoadMore ? participantsOffset : 0;
     try {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "get-participants", 
           apiId: creds.api_id, 
           apiHash: creds.api_hash,
-          chatId: groupId 
+          chatId: groupId,
+          offset,
+          limit: 100 // Smaller chunks for UI display
         }
       });
       if (!error && data?.participants) {
-        setParticipants(data.participants);
+        if (isLoadMore) {
+          setParticipants(prev => [...prev, ...data.participants]);
+          setParticipantsOffset(prev => prev + data.participants.length);
+        } else {
+          setParticipants(data.participants);
+          setParticipantsOffset(data.participants.length);
+        }
+        setHasMoreParticipants(data.hasMore);
       }
     } catch (err) {
       console.error("Erro ao buscar participantes:", err);
