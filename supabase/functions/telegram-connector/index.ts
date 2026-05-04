@@ -443,12 +443,19 @@ serve(async (req) => {
       });
 
       try {
+        console.log(`[ADD_MEMBERS] Starting process for ${user.id} in group ${groupId}`);
         await client.connect();
         const results = [];
-        const usersToAdd = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+        const rawUsers = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+        // Additional cleanup: remove quotes and invisible characters
+        const usersToAdd = rawUsers.map((u: string) => u.replace(/^["']|["']$/g, '').trim());
+        
+        console.log(`[ADD_MEMBERS] Cleaned list: ${JSON.stringify(usersToAdd)}`);
         
         for (let i = 0; i < usersToAdd.length; i++) {
           const userHandle = usersToAdd[i];
+          console.log(`[ADD_MEMBERS] Processing user ${i+1}/${usersToAdd.length}: ${userHandle}`);
+
           let attempts = 0;
           const maxAttempts = 3;
           let added = false;
