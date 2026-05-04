@@ -929,18 +929,34 @@ export const GroupManagerView = () => {
                         </div>
                       </ScrollArea>
 
-                      <DialogFooter className="mt-4 pt-4 border-t gap-2">
-                        <Button variant="outline" onClick={() => {
-                          setIsImportOpen(false);
-                          setParsedMembers([]);
-                          setImportList("");
-                        }}>
-                          Cancelar
-                        </Button>
+                      <DialogFooter className="mt-4 pt-4 border-t gap-2 flex-col sm:flex-row">
+                        <div className="flex-1 flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => {
+                              setIsImportOpen(false);
+                              setParsedMembers([]);
+                              setImportList("");
+                              setIsDryRun(false);
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button 
+                            variant="secondary"
+                            className="flex-1 gap-2"
+                            onClick={handleDryRun}
+                            disabled={isDryRunning || isImporting || (parsedMembers.length === 0 && !importList.trim())}
+                          >
+                            {isDryRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                            Simular
+                          </Button>
+                        </div>
                         <Button 
                           onClick={handleImportMembers} 
-                          disabled={isImporting || (parsedMembers.length === 0 && !importList.trim())}
-                          className="min-w-[140px]"
+                          disabled={isImporting || isDryRunning || (parsedMembers.length === 0 && !importList.trim())}
+                          className="w-full sm:min-w-[160px]"
                         >
                           {isImporting ? (
                             <>
