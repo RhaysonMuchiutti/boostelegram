@@ -147,20 +147,53 @@ export const GroupManagerView = () => {
     }
   }, [activeImportId]);
 
-  // Handle recovery of active import on mount
+  // Monitor active import from DB
   useEffect(() => {
-    const recoveredId = localStorage.getItem("active_import_id");
-    const recoveredList = localStorage.getItem("import_list_backup");
-    const recoveredOffset = localStorage.getItem("current_import_offset");
+    let interval: any;
+    
+    const checkActiveImport = async () => {
+      if (!creds) return;
+      
+      try {
+        const { data, error } = await supabase.functions.invoke("telegram-connector", {
+          body: { action: "get-active-import", apiId: creds.api_id, apiHash: creds.api_hash }
+        });
 
-    if (recoveredId && recoveredList && !isImporting && selectedGroup?.id === recoveredId) {
-      const offset = parseInt(recoveredOffset || "0", 10);
-      if (offset < importProgress.total) {
-        toast.info("Retomando importação interrompida...");
-        handleImportMembers(recoveredList, offset);
+        if (error) return;
+
+        if (data?.task) {
+          const task = data.task;
+          setImportProgress({
+            current: task.processed_count,
+            total: task.total_count,
+            added: task.added_count,
+            failed: task.failed_count
+          });
+          setImportResults(task.results || []);
+          setShowProgressWidget(true);
+          setIsImporting(task.status === 'processing' || task.status === 'pending');
+          setActiveImportId(task.id);
+          
+          if (task.status === 'completed' || task.status === 'failed' || task.status === 'stopped') {
+            const errors = (task.results || []).filter((r: any) => r.status === 'error');
+            setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
+          }
+        } else if (isImporting) {
+          // If no active task found but we think we are importing, reset
+          setIsImporting(false);
+        }
+      } catch (err) {
+        console.error("Error polling import:", err);
       }
+    };
+
+    if (creds) {
+      checkActiveImport();
+      interval = setInterval(checkActiveImport, 3000);
     }
-  }, [selectedGroup, creds]); // Run when group/creds are ready
+
+    return () => clearInterval(interval);
+  }, [creds, isImporting]);
 
   const fetchMyGroups = async (credentials: any) => {
     try {
