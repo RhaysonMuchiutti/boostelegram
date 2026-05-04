@@ -72,6 +72,8 @@ export const GroupManagerView = () => {
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
+  const [groupLink, setGroupLink] = useState("");
+  const [isResolvingGroup, setIsResolvingGroup] = useState(false);
 
   const init = async () => {
     setIsLoading(true);
@@ -114,6 +116,39 @@ export const GroupManagerView = () => {
       }
     } catch (err) {
       console.error("Erro ao buscar meus grupos:", err);
+    }
+  };
+
+  const handleResolveGroup = async () => {
+    if (!groupLink.trim() || !creds) return;
+    setIsResolvingGroup(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "resolve-group", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupLink: groupLink.trim()
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.group) {
+        // Add to local list if not present
+        if (!myGroups.find(g => g.id === data.group.id)) {
+          setMyGroups(prev => [data.group, ...prev]);
+        }
+        setSelectedGroup(data.group);
+        fetchParticipants(data.group.id);
+        setGroupLink("");
+        toast.success("Grupo encontrado!");
+      }
+    } catch (err: any) {
+      console.error("Erro ao resolver grupo:", err);
+      toast.error(err.message || "Não foi possível encontrar o grupo. Verifique o link ou se é um grupo público.");
+    } finally {
+      setIsResolvingGroup(false);
     }
   };
 
@@ -253,15 +288,33 @@ export const GroupManagerView = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full min-h-0">
         <Card className="md:col-span-1 flex flex-col min-h-0 overflow-hidden shadow-sm border-slate-200">
-          <CardHeader className="p-4 border-b">
+          <CardHeader className="p-4 border-b space-y-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar grupos..."
+                placeholder="Filtrar meus grupos..."
                 className="pl-8 h-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Link ou @username público"
+                className="h-9 text-xs"
+                value={groupLink}
+                onChange={(e) => setGroupLink(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleResolveGroup()}
+              />
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="h-9 px-2"
+                onClick={handleResolveGroup}
+                disabled={isResolvingGroup || !groupLink}
+              >
+                {isResolvingGroup ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 overflow-hidden">
@@ -292,10 +345,15 @@ export const GroupManagerView = () => {
                           <Users className="w-5 h-5 text-primary" />
                         </div>
                         <div className="overflow-hidden">
-                          <p className="font-semibold text-sm truncate">{group.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {group.participantsCount} membros • {group.isChannel ? "Canal" : "Grupo"}
-                          </p>
+                           <p className="font-semibold text-sm truncate">{group.title}</p>
+                           <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                             {group.isAdmin ? (
+                               <Shield className="w-3 h-3 text-primary inline" />
+                             ) : (
+                               <Users className="w-3 h-3 inline" />
+                             )}
+                             {group.participantsCount} membros • {group.isChannel ? "Canal" : "Grupo"} • {group.isAdmin ? "Admin" : "Membro"}
+                           </p>
                         </div>
                       </div>
                       <ChevronRight className={cn(
@@ -325,19 +383,26 @@ export const GroupManagerView = () => {
                   <div>
                     <CardTitle className="text-xl">{selectedGroup.title}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
-                      <Shield className="w-3 h-3" />
-                      {selectedGroup.isCreator ? "Proprietário" : "Administrador"} • {selectedGroup.isChannel ? "Canal" : "Grupo"}
+                      {selectedGroup.isCreator ? (
+                        <><Shield className="w-3 h-3" /> Proprietário</>
+                      ) : selectedGroup.isAdmin ? (
+                        <><Shield className="w-3 h-3" /> Administrador</>
+                      ) : (
+                        <><Users className="w-3 h-3" /> Membro</>
+                      )}
+                      • {selectedGroup.isChannel ? "Canal" : "Grupo"}
                     </CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Adicionar Membros
-                      </Button>
-                    </DialogTrigger>
+                  {selectedGroup.isAdmin && (
+                    <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="gap-2">
+                          <Plus className="w-4 h-4" />
+                          Adicionar Membros
+                        </Button>
+                      </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Adicionar Membros</DialogTitle>
@@ -377,6 +442,7 @@ export const GroupManagerView = () => {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
+                )}
                   
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
