@@ -12,7 +12,8 @@ import {
   PanelLeftOpen,
   Zap,
   Key,
-  List
+  List,
+  Compass
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
