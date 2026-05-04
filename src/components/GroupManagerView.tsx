@@ -98,6 +98,7 @@ export const GroupManagerView = () => {
     return localStorage.getItem("active_import_id") || null;
   });
   const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
+  const [importResults, setImportResults] = useState<any[]>([]);
 
   const init = async () => {
     setIsLoading(true);
@@ -442,6 +443,8 @@ export const GroupManagerView = () => {
       }
       
       setActiveImportId(null); // Clear active import tracking on finish
+      setImportResults(allResults); // Save results for report generation
+
 
       
       const added = allResults.filter((r: any) => r.status === 'added').length;
@@ -607,6 +610,32 @@ export const GroupManagerView = () => {
     }
   };
 
+  const downloadImportReport = (results: any[]) => {
+    if (results.length === 0) return;
+    
+    const headers = ["Username/ID", "Status", "Mensagem de Erro"];
+    const csvContent = [
+      headers.join(","),
+      ...results.map(r => [
+        `"${r.user}"`,
+        `"${r.status === 'added' ? 'Adicionado' : 'Falha'}"`,
+        `"${r.error || ''}"`
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `relatorio_importacao_${selectedGroup?.title || "telegram"}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.appendChild(link);
+    document.body.removeChild(link);
+    toast.success("Relatório CSV baixado!");
+  };
+
   const toggleColumn = (columnId: string) => {
     setSelectedColumns(prev => 
       prev.includes(columnId) 
@@ -670,24 +699,36 @@ export const GroupManagerView = () => {
                 </div>
               </div>
               {!isImporting && (
-                <div className="flex gap-2">
-                  {importProgress.failed > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    {importProgress.failed > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => setIsFailuresDialogOpen(true)}
+                      >
+                        Revisar Falhas
+                      </Button>
+                    )}
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm" 
-                      className="flex-1 h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
-                      onClick={() => setIsFailuresDialogOpen(true)}
+                      className="flex-1 h-7 text-[10px] text-slate-500 hover:text-slate-700"
+                      onClick={() => setShowProgressWidget(false)}
                     >
-                      Revisar Falhas
+                      Fechar
                     </Button>
-                  )}
+                  </div>
                   <Button 
-                    variant="ghost" 
+                    variant="secondary" 
                     size="sm" 
-                    className="flex-1 h-7 text-[10px] text-slate-500 hover:text-slate-700"
-                    onClick={() => setShowProgressWidget(false)}
+                    className="w-full h-8 text-[10px] gap-2"
+                    onClick={() => downloadImportReport(importResults)}
+                    disabled={importResults.length === 0}
                   >
-                    Fechar
+                    <FileDown className="w-3.5 h-3.5" />
+                    Baixar Relatório CSV
                   </Button>
                 </div>
               )}
