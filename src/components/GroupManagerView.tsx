@@ -72,6 +72,8 @@ export const GroupManagerView = () => {
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
+  const [groupLink, setGroupLink] = useState("");
+  const [isResolvingGroup, setIsResolvingGroup] = useState(false);
 
   const init = async () => {
     setIsLoading(true);
