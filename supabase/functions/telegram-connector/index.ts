@@ -552,6 +552,62 @@ serve(async (req) => {
       }
     }
 
+    if (action === 'start-import') {
+      const { groupId, groupTitle, participantsList } = body;
+      const rawUsers = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+      const totalCount = rawUsers.length;
+
+      const { data: task, error: insertError } = await supabaseAdminClient
+        .from('import_tasks')
+        .insert({
+          user_id: user.id,
+          group_id: groupId,
+          group_title: groupTitle,
+          participants_list: participantsList,
+          total_count: totalCount,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Start background process without awaiting it
+      processBackgroundImport(supabaseAdminClient, task.id, parseInt(apiId), apiHash);
+
+      return new Response(JSON.stringify({ taskId: task.id }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    if (action === 'stop-import') {
+      const { taskId } = body;
+      await supabaseAdminClient
+        .from('import_tasks')
+        .update({ status: 'stopped' })
+        .eq('id', taskId)
+        .eq('user_id', user.id);
+
+      return new Response(JSON.stringify({ success: true }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    if (action === 'get-active-import') {
+      const { data: task } = await supabaseAdminClient
+        .from('import_tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'processing'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return new Response(JSON.stringify({ task }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     if (action === 'add-members') {
       const { groupId, participantsList, batchOffset = 0, batchSize = 4 } = body;
       const { data: conn } = await supabaseAdminClient
