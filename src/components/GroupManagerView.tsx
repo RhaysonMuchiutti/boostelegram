@@ -207,14 +207,24 @@ export const GroupManagerView = () => {
 
   const parseMembers = (text: string) => {
     // Split by comma, newline or space and clean up
-    const members = text
+    const rawMembers = text
       .split(/[,\n\s]+/)
       .map(m => m.trim())
       .filter(m => m.length > 0);
     
-    // De-duplicate
-    const uniqueMembers = Array.from(new Set(members));
-    setParsedMembers(prev => Array.from(new Set([...prev, ...uniqueMembers])));
+    // Identify and filter out duplicates
+    const newUniqueMembers = rawMembers.filter(member => !parsedMembers.includes(member));
+    const duplicatesCount = rawMembers.length - newUniqueMembers.length;
+    
+    if (duplicatesCount > 0) {
+      toast.info(`${duplicatesCount} duplicados foram removidos automaticamente.`);
+    }
+
+    if (newUniqueMembers.length > 0) {
+      setParsedMembers(prev => [...prev, ...newUniqueMembers]);
+    } else if (rawMembers.length > 0 && duplicatesCount > 0) {
+      toast.error("Todos os membros informados já estão na lista de revisão.");
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -589,8 +599,8 @@ export const GroupManagerView = () => {
                                 <div className="flex items-center justify-between">
                                   <Label className="text-sm font-semibold flex items-center gap-2">
                                     Lista de Revisão
-                                    <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full">
-                                      {parsedMembers.length} encontrados
+                                    <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                      {parsedMembers.length} únicos
                                     </span>
                                   </Label>
                                   <Button 
