@@ -439,8 +439,13 @@ serve(async (req) => {
       const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
         connectionRetries: 5,
         requestRetries: 3,
-        timeout: 30000,
+        timeout: 45000,
+        useWSS: false,
+        autoReconnect: true,
       });
+
+      // Disable update loop for performance and to avoid timeouts in edge functions
+      (client as any)._disableUpdates = true;
 
       try {
         console.log(`[ADD_MEMBERS] Starting process for ${user.id} in group ${groupId}`);
