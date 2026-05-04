@@ -697,6 +697,17 @@ export const GroupManagerView = () => {
               {!isImporting && (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
+                    {!isImporting && (importStatus === 'stopped' || importStatus === 'failed') && (
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] bg-green-600 hover:bg-green-700 gap-1"
+                        onClick={handleResumeImport}
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Retomar
+                      </Button>
+                    )}
                     {importProgress.failed > 0 && (
                       <Button 
                         variant="outline" 
@@ -711,7 +722,10 @@ export const GroupManagerView = () => {
                       variant="ghost" 
                       size="sm" 
                       className="flex-1 h-7 text-[10px] text-slate-500 hover:text-slate-700"
-                      onClick={() => setShowProgressWidget(false)}
+                      onClick={() => {
+                        setShowProgressWidget(false);
+                        localStorage.setItem("show_progress_widget", "false");
+                      }}
                     >
                       Fechar
                     </Button>
