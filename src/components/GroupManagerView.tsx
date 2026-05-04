@@ -156,6 +156,59 @@ export const GroupManagerView = () => {
     }
   };
 
+  const handleExportCSV = () => {
+    if (participants.length === 0) {
+      toast.error("Não há participantes para exportar.");
+      return;
+    }
+
+    const headers = ["ID", "Nome", "Sobrenome", "Username"];
+    const csvContent = [
+      headers.join(","),
+      ...participants.map(p => [
+        p.id,
+        `"${p.firstName || ""}"`,
+        `"${p.lastName || ""}"`,
+        p.username ? `@${p.username}` : ""
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `participantes_${selectedGroup?.title || "grupo"}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("CSV exportado com sucesso!");
+  };
+
+  const handleExportPDF = () => {
+    if (participants.length === 0) {
+      toast.error("Não há participantes para exportar.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const tableColumn = ["ID", "Nome", "Username"];
+    const tableRows = participants.map(p => [
+      p.id,
+      `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+      p.username ? `@${p.username}` : "N/A"
+    ]);
+
+    doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+    doc.save(`participantes_${selectedGroup?.title || "grupo"}.pdf`);
+    toast.success("PDF exportado com sucesso!");
+  };
+
   const filteredGroups = myGroups.filter(g => 
     g.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
