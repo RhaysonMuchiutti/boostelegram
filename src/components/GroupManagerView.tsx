@@ -288,15 +288,33 @@ export const GroupManagerView = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full min-h-0">
         <Card className="md:col-span-1 flex flex-col min-h-0 overflow-hidden shadow-sm border-slate-200">
-          <CardHeader className="p-4 border-b">
+          <CardHeader className="p-4 border-b space-y-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar grupos..."
+                placeholder="Filtrar meus grupos..."
                 className="pl-8 h-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Link ou @username público"
+                className="h-9 text-xs"
+                value={groupLink}
+                onChange={(e) => setGroupLink(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleResolveGroup()}
+              />
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="h-9 px-2"
+                onClick={handleResolveGroup}
+                disabled={isResolvingGroup || !groupLink}
+              >
+                {isResolvingGroup ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 overflow-hidden">
