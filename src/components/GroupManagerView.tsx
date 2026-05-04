@@ -599,8 +599,8 @@ export const GroupManagerView = () => {
                                 <div className="flex items-center justify-between">
                                   <Label className="text-sm font-semibold flex items-center gap-2">
                                     Lista de Revisão
-                                    <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full">
-                                      {parsedMembers.length} encontrados
+                                    <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                      {parsedMembers.length} únicos
                                     </span>
                                   </Label>
                                   <Button 
