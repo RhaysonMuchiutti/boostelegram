@@ -1010,6 +1010,7 @@ serve(async (req) => {
     }
 
     if (action === 'scrape-niche-groups') {
+      console.log(`[SCRAPE] Starting for user ${user.id} with keywords:`, body.keywords);
       const { nicheId, keywords } = body;
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
@@ -1020,11 +1021,16 @@ serve(async (req) => {
       if (!conn?.session_string) throw new Error('No session');
 
       const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
-        connectionRetries: 1,
+        connectionRetries: 5,
+        requestRetries: 3,
+        timeout: 30000,
+        autoReconnect: true,
       });
 
       try {
+        console.log(`[SCRAPE] Connecting to Telegram...`);
         await client.connect();
+        console.log(`[SCRAPE] Connected successfully`);
         let foundCount = 0;
         
         // Telegram global search works best with single words or short phrases
