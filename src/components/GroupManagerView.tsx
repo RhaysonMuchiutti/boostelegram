@@ -549,7 +549,56 @@ export const GroupManagerView = () => {
   );
 
   return (
-    <div className="flex flex-col h-full gap-6">
+    <div className="flex flex-col h-full gap-6 relative">
+      {showProgressWidget && (
+        <div className="fixed bottom-6 right-6 z-[100] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <Card className="w-80 shadow-2xl border-primary/20 bg-white/95 backdrop-blur-sm overflow-hidden">
+            <CardHeader className="p-4 pb-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
+                  {isImporting ? "Adicionando Membros..." : "Processamento Concluído"}
+                </CardTitle>
+                <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                  {Math.round((importProgress.current / importProgress.total) * 100)}%
+                </span>
+              </div>
+              <CardDescription className="text-[10px]">
+                {importProgress.current} de {importProgress.total} processados
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-primary h-full transition-all duration-500 ease-out"
+                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 p-2 rounded-lg border border-green-100">
+                  <p className="text-[9px] uppercase font-bold text-green-600 mb-0.5">Sucesso</p>
+                  <p className="text-sm font-bold text-green-700">{importProgress.added}</p>
+                </div>
+                <div className="bg-red-50 p-2 rounded-lg border border-red-100">
+                  <p className="text-[9px] uppercase font-bold text-red-600 mb-0.5">Falhas</p>
+                  <p className="text-sm font-bold text-red-700">{importProgress.failed}</p>
+                </div>
+              </div>
+              {!isImporting && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full h-7 text-[10px] text-slate-500 hover:text-slate-700"
+                  onClick={() => setShowProgressWidget(false)}
+                >
+                  Fechar
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Gerenciar Grupos e Canais</h2>
