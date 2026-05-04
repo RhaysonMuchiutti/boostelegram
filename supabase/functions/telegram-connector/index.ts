@@ -476,10 +476,21 @@ serve(async (req) => {
               const entity = await client.getEntity(userHandle);
               console.log(`[ADD_MEMBERS] Entity resolved: ${entity.id} (username: ${(entity as any).username})`);
               
-              const inviteResult = await client.invoke(new Api.channels.InviteToChannel({
-                channel: groupEntity,
-                users: [entity]
-              }));
+              let inviteResult;
+              if (groupEntity instanceof Api.Chat) {
+                console.log(`[ADD_MEMBERS] Using messages.AddChatUser for legacy group`);
+                inviteResult = await client.invoke(new Api.messages.AddChatUser({
+                  chatId: groupEntity.id,
+                  userId: entity,
+                  fwdLimit: 0
+                }));
+              } else {
+                console.log(`[ADD_MEMBERS] Using channels.InviteToChannel for supergroup/channel`);
+                inviteResult = await client.invoke(new Api.channels.InviteToChannel({
+                  channel: groupEntity,
+                  users: [entity]
+                }));
+              }
               
               console.log(`[ADD_MEMBERS] Invite result for ${userHandle}:`, JSON.stringify(inviteResult));
               results.push({ user: userHandle, status: 'added' });
