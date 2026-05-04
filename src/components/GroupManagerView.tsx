@@ -328,6 +328,7 @@ export const GroupManagerView = () => {
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     
     setIsImporting(true);
+    setShouldStopImport(false);
     const allResults: any[] = [];
     let currentOffset = 0;
     let hasMore = true;
