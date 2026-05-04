@@ -245,7 +245,32 @@ export const GroupManagerView = () => {
   };
 
   const removeParsedMember = (index: number) => {
+    const memberToRemove = parsedMembers[index];
     setParsedMembers(prev => prev.filter((_, i) => i !== index));
+    setSelectedReviewMembers(prev => prev.filter(m => m !== memberToRemove));
+  };
+
+  const removeSelectedReviewMembers = () => {
+    setParsedMembers(prev => prev.filter(m => !selectedReviewMembers.includes(m)));
+    setSelectedReviewMembers([]);
+    toast.success(`${selectedReviewMembers.length} membros removidos.`);
+  };
+
+  const toggleReviewMemberSelection = (member: string) => {
+    setSelectedReviewMembers(prev => 
+      prev.includes(member) 
+        ? prev.filter(m => m !== member)
+        : [...prev, member]
+    );
+  };
+
+  const toggleSelectAllVisible = (visibleMembers: string[]) => {
+    const allVisibleSelected = visibleMembers.every(m => selectedReviewMembers.includes(m));
+    if (allVisibleSelected) {
+      setSelectedReviewMembers(prev => prev.filter(m => !visibleMembers.includes(m)));
+    } else {
+      setSelectedReviewMembers(prev => Array.from(new Set([...prev, ...visibleMembers])));
+    }
   };
 
   const handleImportMembers = async () => {
