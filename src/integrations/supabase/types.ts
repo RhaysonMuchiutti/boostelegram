@@ -128,7 +128,7 @@ export type Database = {
           last_scraped_at: string | null
           member_count: number | null
           niche_id: string | null
-          telegram_id: string | null
+          telegram_id: string
           title: string
           type: string | null
           user_id: string
@@ -142,7 +142,7 @@ export type Database = {
           last_scraped_at?: string | null
           member_count?: number | null
           niche_id?: string | null
-          telegram_id?: string | null
+          telegram_id: string
           title: string
           type?: string | null
           user_id: string
@@ -156,7 +156,7 @@ export type Database = {
           last_scraped_at?: string | null
           member_count?: number | null
           niche_id?: string | null
-          telegram_id?: string | null
+          telegram_id?: string
           title?: string
           type?: string | null
           user_id?: string

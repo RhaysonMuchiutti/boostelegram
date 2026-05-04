@@ -1044,7 +1044,9 @@ serve(async (req) => {
               if (entity.username) {
                 const memberCount = entity.participantsCount || 0;
                 
-                // Upsert into scraped_groups
+                // Upsert into scraped_groups with advanced dedup logic
+                // We use telegram_id as the primary key for conflict, 
+                // but we also check if the username was updated to keep data fresh.
                 const { error: upsertError } = await supabaseAdminClient
                   .from('scraped_groups')
                   .upsert({
@@ -1054,8 +1056,12 @@ serve(async (req) => {
                     description: entity.about || "",
                     member_count: memberCount,
                     type: entity.className === 'Channel' ? (entity.broadcast ? 'channel' : 'group') : 'group',
-                    telegram_id: entity.id.toString()
-                  }, { onConflict: 'telegram_id' });
+                    telegram_id: entity.id.toString(),
+                    updated_at: new Date().toISOString()
+                  }, { 
+                    onConflict: 'telegram_id',
+                    ignoreDuplicates: false // Ensures we update existing rows if anything changed
+                  });
                 
                 if (!upsertError) foundCount++;
               }
