@@ -345,10 +345,18 @@ export const GroupManagerView = () => {
       toast.info(`Iniciando adição de ${totalToProcess} membros...`);
       
       while (hasMore) {
-        if (shouldStopImport) {
-          toast.info("Importação interrompida pelo usuário.");
+        // We use a functional update or a ref to check the latest value in the loop
+        let currentStopValue = false;
+        setShouldStopImport(prev => {
+          currentStopValue = prev;
+          return prev;
+        });
+
+        if (currentStopValue) {
+          toast.info("Importação interrompida.");
           break;
         }
+
 
         const { data, error } = await supabase.functions.invoke("telegram-connector", {
           body: { 
