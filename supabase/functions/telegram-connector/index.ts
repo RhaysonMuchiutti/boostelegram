@@ -452,10 +452,15 @@ serve(async (req) => {
         await client.connect();
         const results = [];
         const rawUsers = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
-        // Additional cleanup: remove quotes and invisible characters
-        const usersToAdd = rawUsers.map((u: string) => u.replace(/^["']|["']$/g, '').trim());
+        const allUsers = rawUsers.map((u: string) => u.replace(/^["']|["']$/g, '').trim());
         
-        console.log(`[ADD_MEMBERS] Cleaned list: ${JSON.stringify(usersToAdd)}`);
+        // Process only a slice of users in this invocation to stay under 150s edge function limit
+        const usersToAdd = allUsers.slice(batchOffset, batchOffset + batchSize);
+        const totalUsers = allUsers.length;
+        const nextOffset = batchOffset + usersToAdd.length;
+        const hasMore = nextOffset < totalUsers;
+        
+        console.log(`[ADD_MEMBERS] Batch: processing ${usersToAdd.length} of ${totalUsers} (offset=${batchOffset})`);
         
         // Get group info first to confirm we have access
         const groupEntity = await client.getEntity(groupId);
@@ -463,7 +468,7 @@ serve(async (req) => {
 
         for (let i = 0; i < usersToAdd.length; i++) {
           const userHandle = usersToAdd[i];
-          console.log(`[ADD_MEMBERS] Processing user ${i+1}/${usersToAdd.length}: ${userHandle}`);
+          console.log(`[ADD_MEMBERS] Processing user ${batchOffset + i + 1}/${totalUsers}: ${userHandle}`);
 
           let attempts = 0;
           const maxAttempts = 3;
