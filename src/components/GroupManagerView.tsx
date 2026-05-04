@@ -16,7 +16,8 @@ import {
   Info,
   FileDown,
   FileText,
-  Table
+  Table,
+  Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -44,8 +45,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+const exportColumns = [
+  { id: "id", label: "ID" },
+  { id: "firstName", label: "Primeiro Nome" },
+  { id: "lastName", label: "Sobrenome" },
+  { id: "username", label: "Username" },
+  { id: "status", label: "Status" },
+  { id: "joinedDate", label: "Data de Entrada" },
+];
 
 export const GroupManagerView = () => {
   const [myGroups, setMyGroups] = useState<any[]>([]);
@@ -58,6 +69,9 @@ export const GroupManagerView = () => {
   const [importList, setImportList] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
 
   const init = async () => {
     setIsLoading(true);
@@ -156,57 +170,69 @@ export const GroupManagerView = () => {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExport = () => {
     if (participants.length === 0) {
       toast.error("Não há participantes para exportar.");
       return;
     }
 
-    const headers = ["ID", "Nome", "Sobrenome", "Username"];
-    const csvContent = [
-      headers.join(","),
-      ...participants.map(p => [
-        p.id,
-        `"${p.firstName || ""}"`,
-        `"${p.lastName || ""}"`,
-        p.username ? `@${p.username}` : ""
-      ].join(","))
-    ].join("\n");
+    if (selectedColumns.length === 0) {
+      toast.error("Selecione pelo menos uma coluna para exportar.");
+      return;
+    }
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `participantes_${selectedGroup?.title || "grupo"}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("CSV exportado com sucesso!");
+    if (exportFormat === "csv") {
+      const headers = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label);
+      const csvContent = [
+        headers.join(","),
+        ...participants.map(p => selectedColumns.map(colId => {
+          let value = p[colId] || "";
+          if (colId === "username" && value) value = `@${value}`;
+          if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
+          return `"${value}"`;
+        }).join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `participantes_${selectedGroup?.title || "grupo"}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const doc = new jsPDF();
+      const tableColumn = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label || "");
+      const tableRows = participants.map(p => selectedColumns.map(colId => {
+        let value = p[colId] || "";
+        if (colId === "username" && value) value = `@${value}`;
+        if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
+        return value;
+      }));
+
+      doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [14, 165, 233] }
+      });
+      doc.save(`participantes_${selectedGroup?.title || "grupo"}.pdf`);
+    }
+
+    setIsExportDialogOpen(false);
+    toast.success(`${exportFormat.toUpperCase()} exportado com sucesso!`);
   };
 
-  const handleExportPDF = () => {
-    if (participants.length === 0) {
-      toast.error("Não há participantes para exportar.");
-      return;
-    }
-
-    const doc = new jsPDF();
-    const tableColumn = ["ID", "Nome", "Username"];
-    const tableRows = participants.map(p => [
-      p.id,
-      `${p.firstName || ""} ${p.lastName || ""}`.trim(),
-      p.username ? `@${p.username}` : "N/A"
-    ]);
-
-    doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 20,
-    });
-    doc.save(`participantes_${selectedGroup?.title || "grupo"}.pdf`);
-    toast.success("PDF exportado com sucesso!");
+  const toggleColumn = (columnId: string) => {
+    setSelectedColumns(prev => 
+      prev.includes(columnId) 
+        ? prev.filter(id => id !== columnId)
+        : [...prev, columnId]
+    );
   };
 
   const filteredGroups = myGroups.filter(g => 
@@ -376,6 +402,40 @@ export const GroupManagerView = () => {
                         Participantes ({participants.length})
                       </h4>
                       <div className="flex items-center gap-2">
+                        <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Configurar Exportação ({exportFormat.toUpperCase()})</DialogTitle>
+                              <CardDescription>
+                                Selecione quais dados você deseja incluir no arquivo.
+                              </CardDescription>
+                            </DialogHeader>
+                            <div className="grid grid-cols-2 gap-4 py-4">
+                              {exportColumns.map((column) => (
+                                <div key={column.id} className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`col-${column.id}`} 
+                                    checked={selectedColumns.includes(column.id)}
+                                    onCheckedChange={() => toggleColumn(column.id)}
+                                  />
+                                  <Label 
+                                    htmlFor={`col-${column.id}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {column.label}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancelar</Button>
+                              <Button onClick={handleExport}>
+                                Confirmar e Exportar
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-2">
@@ -384,11 +444,11 @@ export const GroupManagerView = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                            <DropdownMenuItem onClick={() => { setExportFormat("csv"); setIsExportDialogOpen(true); }} className="gap-2 cursor-pointer">
                               <Table className="w-4 h-4" />
                               Exportar CSV
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                            <DropdownMenuItem onClick={() => { setExportFormat("pdf"); setIsExportDialogOpen(true); }} className="gap-2 cursor-pointer">
                               <FileText className="w-4 h-4" />
                               Exportar PDF
                             </DropdownMenuItem>
@@ -421,9 +481,24 @@ export const GroupManagerView = () => {
                               </div>
                               <div>
                                 <p className="text-sm font-semibold">{p.firstName} {p.lastName}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {p.username ? `@${p.username}` : "Sem username"}
-                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {p.username && (
+                                    <span className="text-xs text-muted-foreground">@{p.username}</span>
+                                  )}
+                                  {p.status && (
+                                    <span className={cn(
+                                      "text-[10px] px-1.5 py-0.5 rounded-full",
+                                      p.status === "Online" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                                    )}>
+                                      {p.status}
+                                    </span>
+                                  )}
+                                  {p.joinedDate && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Entrou em: {new Date(p.joinedDate).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 hover:bg-red-50">
