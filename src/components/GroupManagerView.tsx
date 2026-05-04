@@ -69,6 +69,7 @@ export const GroupManagerView = () => {
   const [participantsOffset, setParticipantsOffset] = useState(0);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importList, setImportList] = useState("");
+  const [parsedMembers, setParsedMembers] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
