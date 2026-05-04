@@ -1,0 +1,2 @@
+-- No database changes needed for this specific feature update as it's logic-based in the Edge Function.
+-- However, I'll update the Edge Function code next.
