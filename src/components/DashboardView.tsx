@@ -86,8 +86,13 @@ export const DashboardView = () => {
         .limit(5);
       
       setRecentTasks(recent || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar dashboard:", error);
+      // Only show toast if it's the initial load to avoid spamming on background refresh
+      if (isLoading) {
+        const { toast } = await import("sonner");
+        toast.error("Não foi possível carregar os dados do painel. Verifique sua conexão.");
+      }
     } finally {
       setIsLoading(false);
     }

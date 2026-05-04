@@ -160,7 +160,11 @@ export const GroupManagerView = () => {
           body: { action: "get-active-import", apiId: creds.api_id, apiHash: creds.api_hash }
         });
 
-        if (error) return;
+        if (error) {
+          console.error("Error polling import:", error);
+          // We don't toast here as it polls frequently
+          return;
+        }
 
         if (data?.task) {
           const task = data.task;
@@ -181,11 +185,10 @@ export const GroupManagerView = () => {
             setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
           }
         } else if (isImporting) {
-          // If no active task found but we think we are importing, reset
           setIsImporting(false);
         }
       } catch (err) {
-        console.error("Error polling import:", err);
+        console.error("Exception polling import:", err);
       }
     };
 
@@ -202,13 +205,19 @@ export const GroupManagerView = () => {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { action: "get-my-groups", apiId: credentials.api_id, apiHash: credentials.api_hash }
       });
-      if (!error && data?.groups) {
-        setMyGroups(data.groups);
-      } else if (error) {
+      
+      if (error) {
         console.error("Erro ao buscar meus grupos:", error);
+        toast.error("Não foi possível carregar seus grupos do Telegram. Verifique sua conexão.");
+        return;
+      }
+      
+      if (data?.groups) {
+        setMyGroups(data.groups);
       }
     } catch (err) {
       console.error("Erro ao buscar meus grupos:", err);
+      toast.error("Ocorreu um erro inesperado ao sincronizar grupos.");
     }
   };
 
@@ -257,25 +266,32 @@ export const GroupManagerView = () => {
           apiHash: creds.api_hash,
           chatId: groupId,
           offset,
-          limit: 100 // Smaller chunks for UI display
+          limit: 100
         }
       });
+
       if (error) {
+        console.error("Participants fetch error:", error);
         const msg = (error as any)?.message || "";
         if (msg.includes("CHAT_ADMIN_REQUIRED")) {
-          toast.error("Este grupo/canal só permite listar membros para administradores.");
-          setParticipants([]);
-          setHasMoreParticipants(false);
-          return;
+          toast.error("Permissão de administrador necessária para listar membros.");
+        } else if (msg.includes("CHANNEL_PRIVATE")) {
+          toast.error("Este canal é privado e você não é membro ou administrador.");
+        } else {
+          toast.error("Erro ao carregar lista de participantes.");
         }
-        throw error;
-      }
-      if (data?.error === 'admin_required') {
-        toast.error(data.message || "Sem permissão para listar membros deste grupo.");
         setParticipants([]);
         setHasMoreParticipants(false);
         return;
       }
+
+      if (data?.error === 'admin_required') {
+        toast.error(data.message || "Apenas administradores podem ver a lista de membros.");
+        setParticipants([]);
+        setHasMoreParticipants(false);
+        return;
+      }
+
       if (data?.participants) {
         if (isLoadMore) {
           setParticipants(prev => [...prev, ...data.participants]);
@@ -287,7 +303,8 @@ export const GroupManagerView = () => {
         setHasMoreParticipants(data.hasMore);
       }
     } catch (err) {
-      console.error("Erro ao buscar participantes:", err);
+      console.error("Exception fetching participants:", err);
+      toast.error("Ocorreu uma falha na comunicação com o servidor.");
     } finally {
       setIsLoadingParticipants(false);
     }
@@ -429,7 +446,11 @@ export const GroupManagerView = () => {
       setParsedMembers([]);
     } catch (err: any) {
       console.error("Erro ao iniciar importação:", err);
-      toast.error(err.message || "Falha ao iniciar importação.");
+      let msg = "Falha ao iniciar importação.";
+      if (err.message?.includes("session_expired")) msg = "Sessão expirada. Reconecte seu Telegram.";
+      if (err.message?.includes("rate_limit")) msg = "Limite de requisições atingido. Tente novamente mais tarde.";
+      
+      toast.error(msg);
       setIsImporting(false);
       setShowProgressWidget(false);
     }
@@ -439,7 +460,7 @@ export const GroupManagerView = () => {
     if (!activeImportId || !creds) return;
     
     try {
-      await supabase.functions.invoke("telegram-connector", {
+      const { error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "stop-import", 
           apiId: creds.api_id, 
@@ -447,9 +468,12 @@ export const GroupManagerView = () => {
           taskId: activeImportId
         }
       });
+      
+      if (error) throw error;
       toast.info("Comando de parada enviado.");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao parar importação:", err);
+      toast.error("Não foi possível parar a tarefa. Tente novamente.");
     }
   };
 
