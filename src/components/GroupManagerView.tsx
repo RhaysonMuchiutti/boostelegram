@@ -719,8 +719,8 @@ export const GroupManagerView = () => {
                           Adicionar Membros
                         </Button>
                       </DialogTrigger>
-                    <DialogContent className="sm:max-w-[550px] h-[90vh] sm:h-auto sm:max-h-[85vh] flex flex-col p-0 overflow-hidden">
-                      <div className="p-6 pb-2">
+                    <DialogContent className="sm:max-w-[550px] w-[95vw] h-[90vh] sm:h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl">
+                      <div className="p-4 sm:p-6 border-b shrink-0 bg-white z-10">
                         <DialogHeader>
                           <DialogTitle>Adicionar Membros</DialogTitle>
                           <CardDescription>
@@ -729,8 +729,8 @@ export const GroupManagerView = () => {
                         </DialogHeader>
                       </div>
                       
-                      <ScrollArea className="flex-1 px-6">
-                        <div className="space-y-6 py-4">
+                      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 custom-scrollbar">
+                        <div className="space-y-6 pb-20">
                           {/* Inner content starts here */}
                           {isDryRun && dryRunResults && (
                             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
