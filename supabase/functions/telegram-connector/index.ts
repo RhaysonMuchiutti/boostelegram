@@ -443,12 +443,19 @@ serve(async (req) => {
       });
 
       try {
+        console.log(`[ADD_MEMBERS] Starting process for ${user.id} in group ${groupId}`);
         await client.connect();
         const results = [];
-        const usersToAdd = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+        const rawUsers = participantsList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+        // Additional cleanup: remove quotes and invisible characters
+        const usersToAdd = rawUsers.map((u: string) => u.replace(/^["']|["']$/g, '').trim());
+        
+        console.log(`[ADD_MEMBERS] Cleaned list: ${JSON.stringify(usersToAdd)}`);
         
         for (let i = 0; i < usersToAdd.length; i++) {
           const userHandle = usersToAdd[i];
+          console.log(`[ADD_MEMBERS] Processing user ${i+1}/${usersToAdd.length}: ${userHandle}`);
+
           let attempts = 0;
           const maxAttempts = 3;
           let added = false;
@@ -462,25 +469,30 @@ serve(async (req) => {
               }));
               results.push({ user: userHandle, status: 'added' });
               added = true;
+              console.log(`[ADD_MEMBERS] SUCCESS: ${userHandle} added to ${groupId}`);
             } catch (e: any) {
               lastError = e.message;
-              console.error(`Attempt ${attempts + 1} failed for ${userHandle}: ${e.message}`);
+              console.error(`[ADD_MEMBERS] ERROR on attempt ${attempts + 1} for ${userHandle}: ${e.message}`);
               
-              // If it's a timeout or connection issue, retry with backoff
               if (e.message.includes('TIMEOUT') || e.message.includes('connection') || e.message.includes('disconnected')) {
                 attempts++;
                 if (attempts < maxAttempts) {
-                  const backoff = Math.pow(2, attempts) * 1000; // 2s, 4s...
+                  const backoff = Math.pow(2, attempts) * 1000;
+                  console.log(`[ADD_MEMBERS] RETRYING ${userHandle} in ${backoff}ms...`);
                   await new Promise(resolve => setTimeout(resolve, backoff));
-                  if (!client.connected) await client.connect();
+                  if (!client.connected) {
+                    console.log(`[ADD_MEMBERS] Reconnecting client...`);
+                    await client.connect();
+                  }
                   continue;
                 }
               }
               
-              // If rate limited or specific error (privacy), don't retry
               results.push({ user: userHandle, status: 'error', error: e.message });
+              console.log(`[ADD_MEMBERS] FINAL FAILURE for ${userHandle}: ${e.message}`);
               if (e.message.includes('FLOOD_WAIT')) {
-                i = usersToAdd.length; // Stop the whole loop
+                console.warn(`[ADD_MEMBERS] FLOOD_WAIT detected. Stopping process.`);
+                i = usersToAdd.length;
               }
               break; 
             }
