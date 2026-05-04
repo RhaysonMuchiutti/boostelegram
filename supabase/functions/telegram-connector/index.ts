@@ -699,12 +699,23 @@ serve(async (req) => {
 
         // 2. Add
         const usersToAdd = addUserList ? addUserList.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean) : [];
+        const groupEntity = await client.getEntity(groupId);
+        
         for (const userHandle of usersToAdd) {
           try {
-            await client.invoke(new Api.channels.InviteToChannel({
-              channel: groupId,
-              users: [userHandle]
-            }));
+            const userEntity = await client.getEntity(userHandle);
+            if (groupEntity instanceof Api.Chat) {
+              await client.invoke(new Api.messages.AddChatUser({
+                chatId: groupEntity.id,
+                userId: userEntity,
+                fwdLimit: 0
+              }));
+            } else {
+              await client.invoke(new Api.channels.InviteToChannel({
+                channel: groupEntity,
+                users: [userEntity]
+              }));
+            }
             results.added.push({ user: userHandle, status: 'added' });
           } catch (e: any) {
             results.added.push({ user: userHandle, status: 'error', error: e.message });
