@@ -383,19 +383,29 @@ export const GroupManagerView = () => {
                   <div>
                     <CardTitle className="text-xl">{selectedGroup.title}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
-                      <Shield className="w-3 h-3" />
-                      {selectedGroup.isCreator ? "Proprietário" : "Administrador"} • {selectedGroup.isChannel ? "Canal" : "Grupo"}
+                      {selectedGroup.isCreator ? (
+                        <><Shield className="w-3 h-3" /> Proprietário</>
+                      ) : selectedGroup.isAdmin ? (
+                        <><Shield className="w-3 h-3" /> Administrador</>
+                      ) : (
+                        <><Users className="w-3 h-3" /> Membro</>
+                      )}
+                      • {selectedGroup.isChannel ? "Canal" : "Grupo"}
                     </CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Adicionar Membros
-                      </Button>
-                    </DialogTrigger>
+                  {selectedGroup.isAdmin && (
+                    <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="gap-2">
+                          <Plus className="w-4 h-4" />
+                          Adicionar Membros
+                        </Button>
+                      </DialogTrigger>
+                      {/* ... dialog content ... */}
+                    </Dialog>
+                  )}
                     <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Adicionar Membros</DialogTitle>
