@@ -209,6 +209,19 @@ export const GroupManagerView = () => {
     }
   };
 
+  const retryFailedMember = (user: string) => {
+    setParsedMembers(prev => Array.from(new Set([...prev, user])));
+    setFailedMembers(prev => prev.filter(f => f.user !== user));
+    setIsImportOpen(true);
+  };
+
+  const retryAllFailed = () => {
+    const usersToRetry = failedMembers.map(f => f.user);
+    setParsedMembers(prev => Array.from(new Set([...prev, ...usersToRetry])));
+    setFailedMembers([]);
+    setIsImportOpen(true);
+  };
+
   const parseMembers = (text: string) => {
     // Split by comma, newline or space and clean up
     const rawMembers = text
