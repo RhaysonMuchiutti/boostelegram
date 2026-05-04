@@ -45,6 +45,131 @@ async function logAudit(supabaseClient: any, userId: string, status: string, rea
     });
 }
 
+// Helper to process import in background
+async function processBackgroundImport(supabaseAdminClient: any, taskId: string, apiId: number, apiHash: string) {
+  try {
+    const { data: task, error: fetchError } = await supabaseAdminClient
+      .from('import_tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+
+    if (fetchError || !task) {
+      console.error(`[BG_IMPORT] Task ${taskId} not found`);
+      return;
+    }
+
+    const { data: conn } = await supabaseAdminClient
+      .from('telegram_connections')
+      .select('session_string')
+      .eq('user_id', task.user_id)
+      .maybeSingle();
+
+    if (!conn?.session_string) {
+      await supabaseAdminClient.from('import_tasks').update({ 
+        status: 'failed', 
+        error_message: 'No active session' 
+      }).eq('id', taskId);
+      return;
+    }
+
+    const client = new TelegramClient(new StringSession(conn.session_string), apiId, apiHash, {
+      connectionRetries: 5,
+      requestRetries: 3,
+      timeout: 45000,
+      autoReconnect: true,
+    });
+    (client as any)._disableUpdates = true;
+
+    await client.connect();
+    
+    const rawUsers = task.participants_list.split(/[\n,;]+/).map((u: string) => u.trim()).filter(Boolean);
+    const allUsers = rawUsers.map((u: string) => u.replace(/^["']|["']$/g, '').trim());
+    
+    let currentOffset = task.current_offset;
+    let addedCount = task.added_count;
+    let failedCount = task.failed_count;
+    let results = task.results || [];
+
+    const groupEntity = await client.getEntity(task.group_id);
+
+    // Update status to processing
+    await supabaseAdminClient.from('import_tasks').update({ status: 'processing' }).eq('id', taskId);
+
+    for (let i = currentOffset; i < allUsers.length; i++) {
+      // Check for stop signal
+      const { data: checkTask } = await supabaseAdminClient.from('import_tasks').select('status').eq('id', taskId).single();
+      if (checkTask?.status === 'stopped') {
+        console.log(`[BG_IMPORT] Task ${taskId} stopped by user`);
+        break;
+      }
+
+      const userHandle = allUsers[i];
+      let added = false;
+      let error = null;
+
+      try {
+        const attemptInvite = async (identifier: string) => {
+          if (groupEntity instanceof Api.Chat) {
+            return await client.invoke(new Api.messages.AddChatUser({ chatId: groupEntity.id, userId: identifier, fwdLimit: 0 }));
+          } else {
+            return await client.invoke(new Api.channels.InviteToChannel({ channel: groupEntity, users: [identifier] }));
+          }
+        };
+
+        try {
+          await attemptInvite(userHandle);
+        } catch (e: any) {
+          if (e.message.includes('Could not find the input entity') && !userHandle.startsWith('@') && isNaN(Number(userHandle))) {
+            await attemptInvite(`@${userHandle}`);
+          } else {
+            throw e;
+          }
+        }
+        added = true;
+        addedCount++;
+        results.push({ user: userHandle, status: 'added' });
+      } catch (e: any) {
+        failedCount++;
+        error = e.message;
+        results.push({ user: userHandle, status: 'error', error: e.message });
+        if (e.message.includes('FLOOD_WAIT')) {
+          await supabaseAdminClient.from('import_tasks').update({ 
+            status: 'failed', 
+            error_message: `Flood wait: ${e.message}`,
+            results, added_count: addedCount, failed_count: failedCount, processed_count: i + 1, current_offset: i + 1
+          }).eq('id', taskId);
+          break;
+        }
+      }
+
+      // Update progress in DB every user or every few users
+      await supabaseAdminClient.from('import_tasks').update({
+        added_count: addedCount,
+        failed_count: failedCount,
+        processed_count: i + 1,
+        current_offset: i + 1,
+        results
+      }).eq('id', taskId);
+
+      if (i < allUsers.length - 1) {
+        const baseDelay = Math.floor(Math.random() * 10000) + 15000; // 15-25s
+        const extraDelay = (i + 1) % 5 === 0 ? 30000 : 0;
+        await delay(baseDelay + extraDelay);
+      }
+    }
+
+    if (currentOffset >= allUsers.length || results.length >= allUsers.length) {
+      await supabaseAdminClient.from('import_tasks').update({ status: 'completed' }).eq('id', taskId);
+    }
+
+    await client.disconnect();
+  } catch (err: any) {
+    console.error(`[BG_IMPORT] Fatal error in task ${taskId}:`, err);
+    await supabaseAdminClient.from('import_tasks').update({ status: 'failed', error_message: err.message }).eq('id', taskId);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
