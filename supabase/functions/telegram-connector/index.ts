@@ -555,13 +555,20 @@ serve(async (req) => {
           if (added && i < usersToAdd.length - 1) {
             // Standard security delay
             const baseDelay = Math.floor(Math.random() * 15000) + 15000; // 15-30s
-            const extraDelay = (i + 1) % 5 === 0 ? 30000 : 0; 
+            const globalIdx = batchOffset + i + 1;
+            const extraDelay = globalIdx % 5 === 0 ? 30000 : 0; 
             await new Promise(resolve => setTimeout(resolve, baseDelay + extraDelay));
           }
         }
         
         await client.disconnect();
-        return new Response(JSON.stringify({ results }), { 
+        return new Response(JSON.stringify({ 
+          results, 
+          hasMore, 
+          nextOffset, 
+          total: totalUsers,
+          processed: nextOffset
+        }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       } catch (e: any) {
