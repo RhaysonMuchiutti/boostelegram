@@ -375,10 +375,30 @@ export const GroupManagerView = () => {
                         <Users className="w-4 h-4" />
                         Participantes ({participants.length})
                       </h4>
-                      <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)}>
-                        <RefreshCw className={cn("w-3 h-3 mr-2", isLoadingParticipants && "animate-spin")} />
-                        Atualizar
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-2">
+                              <FileDown className="w-3 h-3" />
+                              Exportar
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                              <Table className="w-4 h-4" />
+                              Exportar CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                              <FileText className="w-4 h-4" />
+                              Exportar PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)}>
+                          <RefreshCw className={cn("w-3 h-3 mr-2", isLoadingParticipants && "animate-spin")} />
+                          Atualizar
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="space-y-2">
