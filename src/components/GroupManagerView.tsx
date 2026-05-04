@@ -438,7 +438,11 @@ export const GroupManagerView = () => {
         
         hasMore = data?.hasMore === true;
         currentOffset = data?.nextOffset ?? currentOffset + BATCH_SIZE;
+        localStorage.setItem("current_import_offset", currentOffset.toString());
       }
+      
+      setActiveImportId(null); // Clear active import tracking on finish
+
       
       const added = allResults.filter((r: any) => r.status === 'added').length;
       const errors = allResults.filter((r: any) => r.status === 'error');
