@@ -11,7 +11,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Zap,
-  Key
+  Key,
+  List
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
