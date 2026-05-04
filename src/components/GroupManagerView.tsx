@@ -731,7 +731,7 @@ export const GroupManagerView = () => {
                       
                       <ScrollArea className="flex-1 px-6">
                         <div className="space-y-6 py-4">
-                          {/* ... keep existing inner content ... */}
+                          {/* Inner content starts here */}
                           {isDryRun && dryRunResults && (
                             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
                               <div className="flex items-center justify-between">
