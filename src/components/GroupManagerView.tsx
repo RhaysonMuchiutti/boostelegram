@@ -119,6 +119,39 @@ export const GroupManagerView = () => {
     }
   };
 
+  const handleResolveGroup = async () => {
+    if (!groupLink.trim() || !creds) return;
+    setIsResolvingGroup(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "resolve-group", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          groupLink: groupLink.trim()
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.group) {
+        // Add to local list if not present
+        if (!myGroups.find(g => g.id === data.group.id)) {
+          setMyGroups(prev => [data.group, ...prev]);
+        }
+        setSelectedGroup(data.group);
+        fetchParticipants(data.group.id);
+        setGroupLink("");
+        toast.success("Grupo encontrado!");
+      }
+    } catch (err: any) {
+      console.error("Erro ao resolver grupo:", err);
+      toast.error(err.message || "Não foi possível encontrar o grupo. Verifique o link ou se é um grupo público.");
+    } finally {
+      setIsResolvingGroup(false);
+    }
+  };
+
   const fetchParticipants = async (groupId: string) => {
     if (!creds) return;
     setIsLoadingParticipants(true);
