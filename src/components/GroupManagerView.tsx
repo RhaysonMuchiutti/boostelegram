@@ -160,7 +160,11 @@ export const GroupManagerView = () => {
           body: { action: "get-active-import", apiId: creds.api_id, apiHash: creds.api_hash }
         });
 
-        if (error) return;
+        if (error) {
+          console.error("Error polling import:", error);
+          // We don't toast here as it polls frequently
+          return;
+        }
 
         if (data?.task) {
           const task = data.task;
@@ -181,11 +185,10 @@ export const GroupManagerView = () => {
             setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
           }
         } else if (isImporting) {
-          // If no active task found but we think we are importing, reset
           setIsImporting(false);
         }
       } catch (err) {
-        console.error("Error polling import:", err);
+        console.error("Exception polling import:", err);
       }
     };
 
@@ -202,13 +205,19 @@ export const GroupManagerView = () => {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { action: "get-my-groups", apiId: credentials.api_id, apiHash: credentials.api_hash }
       });
-      if (!error && data?.groups) {
-        setMyGroups(data.groups);
-      } else if (error) {
+      
+      if (error) {
         console.error("Erro ao buscar meus grupos:", error);
+        toast.error("Não foi possível carregar seus grupos do Telegram. Verifique sua conexão.");
+        return;
+      }
+      
+      if (data?.groups) {
+        setMyGroups(data.groups);
       }
     } catch (err) {
       console.error("Erro ao buscar meus grupos:", err);
+      toast.error("Ocorreu um erro inesperado ao sincronizar grupos.");
     }
   };
 
