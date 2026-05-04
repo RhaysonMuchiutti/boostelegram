@@ -374,14 +374,28 @@ serve(async (req) => {
           new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout fetching participants')), 80000))
         ]) as any[];
         console.log(`Found ${participants.length} participants`);
-        const result = participants.map((p: any) => ({
-          id: p.id.toString(),
-          username: p.username,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          phone: p.phone,
-          isBot: p.bot
-        }));
+        const result = participants.map((p: any) => {
+          let statusText = "Desconhecido";
+          if (p.status) {
+            const type = p.status.className;
+            if (type === 'UserStatusOnline') statusText = "Online";
+            else if (type === 'UserStatusOffline') statusText = "Offline";
+            else if (type === 'UserStatusRecently') statusText = "Recentemente";
+            else if (type === 'UserStatusLastWeek') statusText = "Última semana";
+            else if (type === 'UserStatusLastMonth') statusText = "Último mês";
+          }
+
+          return {
+            id: p.id.toString(),
+            username: p.username,
+            firstName: p.firstName,
+            lastName: p.lastName,
+            phone: p.phone,
+            isBot: p.bot,
+            status: statusText,
+            joinedDate: p.participant?.date ? new Date(p.participant.date * 1000).toISOString() : null
+          };
+        });
         await client.disconnect();
         return new Response(JSON.stringify({ participants: result }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
