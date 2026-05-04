@@ -86,6 +86,8 @@ export const GroupManagerView = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [groupLink, setGroupLink] = useState("");
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, added: 0, failed: 0 });
+  const [showProgressWidget, setShowProgressWidget] = useState(false);
 
   const init = async () => {
     setIsLoading(true);
