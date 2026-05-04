@@ -449,26 +449,48 @@ serve(async (req) => {
         
         for (let i = 0; i < usersToAdd.length; i++) {
           const userHandle = usersToAdd[i];
-          try {
-            await client.invoke(new Api.channels.InviteToChannel({
-              channel: groupId,
-              users: [userHandle]
-            }));
-            results.push({ user: userHandle, status: 'added' });
-            
-            // Add delay between additions to protect account health
-            // Wait 15-30 seconds between members, with a longer pause every 5 members
-            if (i < usersToAdd.length - 1) {
-              const baseDelay = Math.floor(Math.random() * 15000) + 15000; // 15-30s
-              const extraDelay = (i + 1) % 5 === 0 ? 30000 : 0; // Extra 30s every 5 users
-              await new Promise(resolve => setTimeout(resolve, baseDelay + extraDelay));
+          let attempts = 0;
+          const maxAttempts = 3;
+          let added = false;
+          let lastError = "";
+
+          while (attempts < maxAttempts && !added) {
+            try {
+              await client.invoke(new Api.channels.InviteToChannel({
+                channel: groupId,
+                users: [userHandle]
+              }));
+              results.push({ user: userHandle, status: 'added' });
+              added = true;
+            } catch (e: any) {
+              lastError = e.message;
+              console.error(`Attempt ${attempts + 1} failed for ${userHandle}: ${e.message}`);
+              
+              // If it's a timeout or connection issue, retry with backoff
+              if (e.message.includes('TIMEOUT') || e.message.includes('connection') || e.message.includes('disconnected')) {
+                attempts++;
+                if (attempts < maxAttempts) {
+                  const backoff = Math.pow(2, attempts) * 1000; // 2s, 4s...
+                  await new Promise(resolve => setTimeout(resolve, backoff));
+                  if (!client.connected) await client.connect();
+                  continue;
+                }
+              }
+              
+              // If rate limited or specific error (privacy), don't retry
+              results.push({ user: userHandle, status: 'error', error: e.message });
+              if (e.message.includes('FLOOD_WAIT')) {
+                i = usersToAdd.length; // Stop the whole loop
+              }
+              break; 
             }
-          } catch (e: any) {
-            results.push({ user: userHandle, status: 'error', error: e.message });
-            // If rate limited, stop and return what we have
-            if (e.message.includes('FLOOD_WAIT')) {
-              break;
-            }
+          }
+
+          if (added && i < usersToAdd.length - 1) {
+            // Standard security delay
+            const baseDelay = Math.floor(Math.random() * 15000) + 15000; // 15-30s
+            const extraDelay = (i + 1) % 5 === 0 ? 30000 : 0; 
+            await new Promise(resolve => setTimeout(resolve, baseDelay + extraDelay));
           }
         }
         
