@@ -403,9 +403,6 @@ export const GroupManagerView = () => {
                           Adicionar Membros
                         </Button>
                       </DialogTrigger>
-                      {/* ... dialog content ... */}
-                    </Dialog>
-                  )}
                     <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Adicionar Membros</DialogTitle>
