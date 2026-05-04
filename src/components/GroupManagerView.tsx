@@ -556,17 +556,47 @@ export const GroupManagerView = () => {
                             </div>
                             <DialogFooter>
                               <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancelar</Button>
-                              <Button onClick={handleExport}>
-                                Confirmar e Exportar
+                              <Button onClick={handleExport} disabled={isExportingData}>
+                                {isExportingData ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                                    Exportando ({exportProgress}%)
+                                  </>
+                                ) : (
+                                  "Confirmar e Exportar"
+                                )}
                               </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
 
+                        {isExportingData && (
+                          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center">
+                            <div className="bg-white p-8 rounded-2xl shadow-2xl border border-slate-100 max-w-sm w-full text-center space-y-4">
+                              <RefreshCw className="w-10 h-10 text-primary animate-spin mx-auto" />
+                              <h3 className="text-xl font-bold">Exportando Dados</h3>
+                              <p className="text-muted-foreground text-sm">
+                                Buscando todos os participantes do Telegram. Por favor, aguarde...
+                              </p>
+                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-primary h-full transition-all duration-300" 
+                                  style={{ width: `${exportProgress}%` }}
+                                ></div>
+                              </div>
+                              <p className="text-xs font-mono text-primary">{exportProgress}% concluído</p>
+                            </div>
+                          </div>
+                        )}
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <FileDown className="w-3 h-3" />
+                            <Button variant="outline" size="sm" className="gap-2" disabled={isExportingData}>
+                              {isExportingData ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <FileDown className="w-3 h-3" />
+                              )}
                               Exportar
                             </Button>
                           </DropdownMenuTrigger>
@@ -581,7 +611,7 @@ export const GroupManagerView = () => {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)} disabled={isLoadingParticipants}>
                           <RefreshCw className={cn("w-3 h-3 mr-2", isLoadingParticipants && "animate-spin")} />
                           Atualizar
                         </Button>
@@ -589,17 +619,7 @@ export const GroupManagerView = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      {isLoadingParticipants ? (
-                        Array.from({ length: 8 }).map((_, i) => (
-                          <div key={i} className="flex items-center gap-3 p-3 border border-slate-50 rounded-lg animate-pulse">
-                            <div className="w-10 h-10 rounded-full bg-slate-100"></div>
-                            <div className="flex-1 space-y-2">
-                              <div className="h-4 bg-slate-100 rounded w-1/3"></div>
-                              <div className="h-3 bg-slate-50 rounded w-1/4"></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : participants.length > 0 ? (
+                      {participants.length > 0 && (
                         participants.map((p) => (
                           <div key={p.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors border border-transparent hover:border-slate-100 group">
                             <div className="flex items-center gap-3">
@@ -633,7 +653,32 @@ export const GroupManagerView = () => {
                             </Button>
                           </div>
                         ))
-                      ) : (
+                      )}
+
+                      {isLoadingParticipants && (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3 p-3 border border-slate-50 rounded-lg animate-pulse">
+                            <div className="w-10 h-10 rounded-full bg-slate-100"></div>
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+                              <div className="h-3 bg-slate-50 rounded w-1/4"></div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      {hasMoreParticipants && !isLoadingParticipants && (
+                        <Button 
+                          variant="ghost" 
+                          className="w-full py-6 text-primary hover:bg-primary/5 gap-2"
+                          onClick={() => fetchParticipants(selectedGroup.id, true)}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Carregar mais participantes
+                        </Button>
+                      )}
+
+                      {!isLoadingParticipants && participants.length === 0 && (
                         <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                           <Info className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                           <p className="text-slate-500 font-medium">Nenhum participante encontrado ou sem permissão para listar.</p>
