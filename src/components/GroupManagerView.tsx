@@ -569,11 +569,25 @@ export const GroupManagerView = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
-                  {isImporting ? "Adicionando Membros..." : "Processamento Concluído"}
+                  {isImporting ? "Adicionando Membros..." : shouldStopImport ? "Processamento Interrompido" : "Processamento Concluído"}
                 </CardTitle>
-                <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                  {Math.round((importProgress.current / importProgress.total) * 100)}%
-                </span>
+                <div className="flex items-center gap-2">
+                  {isImporting && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-5 w-5 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setShouldStopImport(true)}
+                      title="Interromper importação"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                  <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                    {Math.round((importProgress.current / importProgress.total) * 100)}%
+                  </span>
+                </div>
+
               </div>
               <CardDescription className="text-[10px]">
                 {importProgress.current} de {importProgress.total} processados
