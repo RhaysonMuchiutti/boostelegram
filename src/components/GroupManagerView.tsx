@@ -76,6 +76,9 @@ export const GroupManagerView = () => {
   const [selectedReviewMembers, setSelectedReviewMembers] = useState<string[]>([]);
   const [failedMembers, setFailedMembers] = useState<{user: string, error: string}[]>([]);
   const [failedSearchTerm, setFailedSearchTerm] = useState("");
+  const [isDryRun, setIsDryRun] = useState(false);
+  const [dryRunResults, setDryRunResults] = useState<{valid: number, restricted: number, unknown: number} | null>(null);
+  const [isDryRunning, setIsDryRunning] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
