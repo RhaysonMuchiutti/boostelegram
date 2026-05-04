@@ -73,6 +73,7 @@ export const GroupManagerView = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [reviewSearchTerm, setReviewSearchTerm] = useState("");
+  const [selectedReviewMembers, setSelectedReviewMembers] = useState<string[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
@@ -244,7 +245,32 @@ export const GroupManagerView = () => {
   };
 
   const removeParsedMember = (index: number) => {
+    const memberToRemove = parsedMembers[index];
     setParsedMembers(prev => prev.filter((_, i) => i !== index));
+    setSelectedReviewMembers(prev => prev.filter(m => m !== memberToRemove));
+  };
+
+  const removeSelectedReviewMembers = () => {
+    setParsedMembers(prev => prev.filter(m => !selectedReviewMembers.includes(m)));
+    setSelectedReviewMembers([]);
+    toast.success(`${selectedReviewMembers.length} membros removidos.`);
+  };
+
+  const toggleReviewMemberSelection = (member: string) => {
+    setSelectedReviewMembers(prev => 
+      prev.includes(member) 
+        ? prev.filter(m => m !== member)
+        : [...prev, member]
+    );
+  };
+
+  const toggleSelectAllVisible = (visibleMembers: string[]) => {
+    const allVisibleSelected = visibleMembers.every(m => selectedReviewMembers.includes(m));
+    if (allVisibleSelected) {
+      setSelectedReviewMembers(prev => prev.filter(m => !visibleMembers.includes(m)));
+    } else {
+      setSelectedReviewMembers(prev => Array.from(new Set([...prev, ...visibleMembers])));
+    }
   };
 
   const handleImportMembers = async () => {
@@ -611,50 +637,96 @@ export const GroupManagerView = () => {
                                     onClick={() => {
                                       setParsedMembers([]);
                                       setReviewSearchTerm("");
+                                      setSelectedReviewMembers([]);
                                     }}
                                   >
                                     Limpar Tudo
                                   </Button>
                                 </div>
 
-                                <div className="relative">
-                                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                                  <Input
-                                    placeholder="Filtrar na lista de revisão..."
-                                    className="pl-8 h-8 text-xs bg-slate-50/50"
-                                    value={reviewSearchTerm}
-                                    onChange={(e) => setReviewSearchTerm(e.target.value)}
-                                  />
+                                <div className="flex gap-2 items-center">
+                                  <div className="relative flex-1">
+                                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                      placeholder="Filtrar na lista de revisão..."
+                                      className="pl-8 h-8 text-xs bg-slate-50/50"
+                                      value={reviewSearchTerm}
+                                      onChange={(e) => setReviewSearchTerm(e.target.value)}
+                                    />
+                                  </div>
+                                  {selectedReviewMembers.length > 0 && (
+                                    <Button 
+                                      variant="destructive" 
+                                      size="sm" 
+                                      className="h-8 px-2 text-[10px] gap-1 animate-in fade-in zoom-in duration-200"
+                                      onClick={removeSelectedReviewMembers}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      Remover ({selectedReviewMembers.length})
+                                    </Button>
+                                  )}
                                 </div>
 
-                                <div className="bg-slate-50 rounded-lg border border-slate-200 p-2 max-h-[200px] overflow-y-auto">
-                                  <div className="grid grid-cols-1 gap-1">
-                                    {parsedMembers
-                                      .filter(member => 
-                                        member.toLowerCase().includes(reviewSearchTerm.toLowerCase())
-                                      )
-                                      .map((member) => {
-                                        const originalIndex = parsedMembers.indexOf(member);
-                                        return (
-                                          <div key={`${member}-${originalIndex}`} className="flex items-center justify-between px-3 py-1.5 bg-white rounded border border-slate-100 group">
-                                            <span className="text-xs font-mono">{member}</span>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon" 
-                                              className="h-6 w-6 text-slate-400 hover:text-red-500"
-                                              onClick={() => removeParsedMember(originalIndex)}
-                                            >
-                                              <Trash2 className="w-3 h-3" />
-                                            </Button>
-                                          </div>
-                                        );
-                                      })}
-                                    {parsedMembers.length > 0 && parsedMembers.filter(m => m.toLowerCase().includes(reviewSearchTerm.toLowerCase())).length === 0 && (
-                                      <div className="py-4 text-center text-xs text-muted-foreground">
-                                        Nenhum membro corresponde à busca.
-                                      </div>
-                                    )}
+                                <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-slate-100/50 border-b border-slate-200">
+                                    <Checkbox 
+                                      id="select-all-review"
+                                      checked={
+                                        parsedMembers.length > 0 && 
+                                        parsedMembers.filter(m => m.toLowerCase().includes(reviewSearchTerm.toLowerCase()))
+                                          .every(m => selectedReviewMembers.includes(m))
+                                      }
+                                      onCheckedChange={() => {
+                                        const visible = parsedMembers.filter(m => m.toLowerCase().includes(reviewSearchTerm.toLowerCase()));
+                                        toggleSelectAllVisible(visible);
+                                      }}
+                                    />
+                                    <Label htmlFor="select-all-review" className="text-[10px] font-bold uppercase text-slate-500 cursor-pointer">
+                                      Selecionar Todos Visíveis
+                                    </Label>
                                   </div>
+                                  <ScrollArea className="h-[200px]">
+                                    <div className="p-2 space-y-1">
+                                      {parsedMembers
+                                        .filter(member => 
+                                          member.toLowerCase().includes(reviewSearchTerm.toLowerCase())
+                                        )
+                                        .map((member) => {
+                                          const originalIndex = parsedMembers.indexOf(member);
+                                          const isSelected = selectedReviewMembers.includes(member);
+                                          return (
+                                            <div 
+                                              key={`${member}-${originalIndex}`} 
+                                              className={cn(
+                                                "flex items-center justify-between px-3 py-1.5 bg-white rounded border transition-colors group",
+                                                isSelected ? "border-primary/30 bg-primary/5" : "border-slate-100 hover:border-slate-200"
+                                              )}
+                                            >
+                                              <div className="flex items-center gap-2 overflow-hidden">
+                                                <Checkbox 
+                                                  checked={isSelected}
+                                                  onCheckedChange={() => toggleReviewMemberSelection(member)}
+                                                />
+                                                <span className="text-xs font-mono truncate">{member}</span>
+                                              </div>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-6 w-6 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={() => removeParsedMember(originalIndex)}
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          );
+                                        })}
+                                      {parsedMembers.length > 0 && parsedMembers.filter(m => m.toLowerCase().includes(reviewSearchTerm.toLowerCase())).length === 0 && (
+                                        <div className="py-8 text-center text-xs text-muted-foreground">
+                                          Nenhum membro corresponde à busca.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </ScrollArea>
                                 </div>
                               </div>
                             )}
