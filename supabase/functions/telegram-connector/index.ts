@@ -481,14 +481,14 @@ serve(async (req) => {
                 console.log(`[ADD_MEMBERS] Using messages.AddChatUser for legacy group`);
                 inviteResult = await client.invoke(new Api.messages.AddChatUser({
                   chatId: groupEntity.id,
-                  userId: entity,
+                  userId: userHandle, // Let GramJS handle resolving the string/handle directly
                   fwdLimit: 0
                 }));
               } else {
                 console.log(`[ADD_MEMBERS] Using channels.InviteToChannel for supergroup/channel`);
                 inviteResult = await client.invoke(new Api.channels.InviteToChannel({
                   channel: groupEntity,
-                  users: [entity]
+                  users: [userHandle] // Let GramJS handle resolving the string/handle directly
                 }));
               }
               
