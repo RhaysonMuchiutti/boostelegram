@@ -438,7 +438,11 @@ export const GroupManagerView = () => {
       setParsedMembers([]);
     } catch (err: any) {
       console.error("Erro ao iniciar importação:", err);
-      toast.error(err.message || "Falha ao iniciar importação.");
+      let msg = "Falha ao iniciar importação.";
+      if (err.message?.includes("session_expired")) msg = "Sessão expirada. Reconecte seu Telegram.";
+      if (err.message?.includes("rate_limit")) msg = "Limite de requisições atingido. Tente novamente mais tarde.";
+      
+      toast.error(msg);
       setIsImporting(false);
       setShowProgressWidget(false);
     }
@@ -448,7 +452,7 @@ export const GroupManagerView = () => {
     if (!activeImportId || !creds) return;
     
     try {
-      await supabase.functions.invoke("telegram-connector", {
+      const { error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "stop-import", 
           apiId: creds.api_id, 
@@ -456,9 +460,12 @@ export const GroupManagerView = () => {
           taskId: activeImportId
         }
       });
+      
+      if (error) throw error;
       toast.info("Comando de parada enviado.");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao parar importação:", err);
+      toast.error("Não foi possível parar a tarefa. Tente novamente.");
     }
   };
 
