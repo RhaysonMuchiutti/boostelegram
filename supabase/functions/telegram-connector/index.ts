@@ -427,7 +427,7 @@ serve(async (req) => {
     }
 
     if (action === 'add-members') {
-      const { groupId, participantsList } = body;
+      const { groupId, participantsList, batchOffset = 0, batchSize = 4 } = body;
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
         .select('session_string')
