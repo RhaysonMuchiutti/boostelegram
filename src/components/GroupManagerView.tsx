@@ -99,6 +99,7 @@ export const GroupManagerView = () => {
   });
   const [isFailuresDialogOpen, setIsFailuresDialogOpen] = useState(false);
   const [importResults, setImportResults] = useState<any[]>([]);
+  const [importStatus, setImportStatus] = useState<string>('idle');
 
   const init = async () => {
     setIsLoading(true);
@@ -170,6 +171,7 @@ export const GroupManagerView = () => {
             failed: task.failed_count
           });
           setImportResults(task.results || []);
+          setImportStatus(task.status);
           setShowProgressWidget(true);
           setIsImporting(task.status === 'processing' || task.status === 'pending');
           setActiveImportId(task.id);
@@ -583,6 +585,27 @@ export const GroupManagerView = () => {
     }
   };
 
+  const handleResumeImport = async () => {
+    if (!activeImportId || !creds) return;
+    
+    try {
+      setIsImporting(true);
+      await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "resume-import", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          taskId: activeImportId
+        }
+      });
+      toast.success("Importação retomada!");
+    } catch (err: any) {
+      console.error("Erro ao retomar importação:", err);
+      toast.error(err.message || "Falha ao retomar importação.");
+      setIsImporting(false);
+    }
+  };
+
   const downloadImportReport = (results: any[]) => {
     if (results.length === 0) return;
     
@@ -630,7 +653,7 @@ export const GroupManagerView = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
-                  {isImporting ? "Adicionando Membros..." : "Processamento Finalizado"}
+                  {isImporting ? "Adicionando Membros..." : importStatus === 'stopped' ? "Processamento Pausado" : importStatus === 'failed' ? "Processamento Falhou" : "Processamento Finalizado"}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   {isImporting && (
@@ -674,6 +697,17 @@ export const GroupManagerView = () => {
               {!isImporting && (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
+                    {!isImporting && (importStatus === 'stopped' || importStatus === 'failed') && (
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="flex-1 h-7 text-[10px] bg-green-600 hover:bg-green-700 gap-1"
+                        onClick={handleResumeImport}
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Retomar
+                      </Button>
+                    )}
                     {importProgress.failed > 0 && (
                       <Button 
                         variant="outline" 
@@ -688,7 +722,10 @@ export const GroupManagerView = () => {
                       variant="ghost" 
                       size="sm" 
                       className="flex-1 h-7 text-[10px] text-slate-500 hover:text-slate-700"
-                      onClick={() => setShowProgressWidget(false)}
+                      onClick={() => {
+                        setShowProgressWidget(false);
+                        localStorage.setItem("show_progress_widget", "false");
+                      }}
                     >
                       Fechar
                     </Button>
