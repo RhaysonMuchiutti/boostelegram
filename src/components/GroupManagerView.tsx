@@ -72,6 +72,7 @@ export const GroupManagerView = () => {
   const [parsedMembers, setParsedMembers] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [reviewSearchTerm, setReviewSearchTerm] = useState("");
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
@@ -607,26 +608,52 @@ export const GroupManagerView = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     className="h-7 text-xs text-red-500 hover:text-red-600"
-                                    onClick={() => setParsedMembers([])}
+                                    onClick={() => {
+                                      setParsedMembers([]);
+                                      setReviewSearchTerm("");
+                                    }}
                                   >
                                     Limpar Tudo
                                   </Button>
                                 </div>
+
+                                <div className="relative">
+                                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Filtrar na lista de revisão..."
+                                    className="pl-8 h-8 text-xs bg-slate-50/50"
+                                    value={reviewSearchTerm}
+                                    onChange={(e) => setReviewSearchTerm(e.target.value)}
+                                  />
+                                </div>
+
                                 <div className="bg-slate-50 rounded-lg border border-slate-200 p-2 max-h-[200px] overflow-y-auto">
                                   <div className="grid grid-cols-1 gap-1">
-                                    {parsedMembers.map((member, index) => (
-                                      <div key={index} className="flex items-center justify-between px-3 py-1.5 bg-white rounded border border-slate-100 group">
-                                        <span className="text-xs font-mono">{member}</span>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          className="h-6 w-6 text-slate-400 hover:text-red-500"
-                                          onClick={() => removeParsedMember(index)}
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </Button>
+                                    {parsedMembers
+                                      .filter(member => 
+                                        member.toLowerCase().includes(reviewSearchTerm.toLowerCase())
+                                      )
+                                      .map((member) => {
+                                        const originalIndex = parsedMembers.indexOf(member);
+                                        return (
+                                          <div key={`${member}-${originalIndex}`} className="flex items-center justify-between px-3 py-1.5 bg-white rounded border border-slate-100 group">
+                                            <span className="text-xs font-mono">{member}</span>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="h-6 w-6 text-slate-400 hover:text-red-500"
+                                              onClick={() => removeParsedMember(originalIndex)}
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        );
+                                      })}
+                                    {parsedMembers.length > 0 && parsedMembers.filter(m => m.toLowerCase().includes(reviewSearchTerm.toLowerCase())).length === 0 && (
+                                      <div className="py-4 text-center text-xs text-muted-foreground">
+                                        Nenhum membro corresponde à busca.
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
                                 </div>
                               </div>
