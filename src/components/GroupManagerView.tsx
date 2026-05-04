@@ -128,6 +128,39 @@ export const GroupManagerView = () => {
     init();
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem("import_progress", JSON.stringify(importProgress));
+  }, [importProgress]);
+
+  useEffect(() => {
+    localStorage.setItem("show_progress_widget", showProgressWidget.toString());
+  }, [showProgressWidget]);
+
+  useEffect(() => {
+    if (activeImportId) {
+      localStorage.setItem("active_import_id", activeImportId);
+    } else {
+      localStorage.removeItem("active_import_id");
+      localStorage.removeItem("import_list_backup");
+      localStorage.removeItem("current_import_offset");
+    }
+  }, [activeImportId]);
+
+  // Handle recovery of active import on mount
+  useEffect(() => {
+    const recoveredId = localStorage.getItem("active_import_id");
+    const recoveredList = localStorage.getItem("import_list_backup");
+    const recoveredOffset = localStorage.getItem("current_import_offset");
+
+    if (recoveredId && recoveredList && !isImporting && selectedGroup?.id === recoveredId) {
+      const offset = parseInt(recoveredOffset || "0", 10);
+      if (offset < importProgress.total) {
+        toast.info("Retomando importação interrompida...");
+        handleImportMembers(recoveredList, offset);
+      }
+    }
+  }, [selectedGroup, creds]); // Run when group/creds are ready
+
   const fetchMyGroups = async (credentials: any) => {
     try {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
