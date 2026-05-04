@@ -13,7 +13,10 @@ import {
   ChevronRight,
   Shield,
   Zap,
-  Info
+  Info,
+  FileDown,
+  FileText,
+  Table
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +44,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const GroupManagerView = () => {
   const [myGroups, setMyGroups] = useState<any[]>([]);
