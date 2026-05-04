@@ -930,9 +930,10 @@ export const GroupManagerView = () => {
                             </div>
                           </div>
                         </div>
-                      </ScrollArea>
+                      </div>
 
-                      <DialogFooter className="mt-4 pt-4 border-t gap-2 flex-col sm:flex-row">
+                      <div className="p-4 border-t bg-slate-50/50 shrink-0">
+                        <DialogFooter className="gap-2 flex-col sm:flex-row">
                         <div className="flex-1 flex gap-2">
                           <Button 
                             variant="outline" 
