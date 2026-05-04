@@ -324,35 +324,61 @@ export const GroupManagerView = () => {
 
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     setIsImporting(true);
+    
+    const allResults: any[] = [];
+    let currentOffset = 0;
+    let hasMore = true;
+    const BATCH_SIZE = 4; // ~4 users per call * ~30s = ~120s, safely under 150s limit
+    
     try {
-      const { data, error } = await supabase.functions.invoke("telegram-connector", {
-        body: { 
-          action: "add-members", 
-          apiId: creds.api_id, 
-          apiHash: creds.api_hash,
-          groupId: selectedGroup.id,
-          participantsList: listToImport
-        }
-      });
+      // Close dialog immediately so user sees progress in toast
+      setIsImportOpen(false);
+      toast.info("Iniciando adição de membros em lotes...");
       
-      if (!error && data?.results) {
-        const added = data.results.filter((r: any) => r.status === 'added').length;
-        const errors = data.results.filter((r: any) => r.status === 'error');
+      while (hasMore) {
+        const { data, error } = await supabase.functions.invoke("telegram-connector", {
+          body: { 
+            action: "add-members", 
+            apiId: creds.api_id, 
+            apiHash: creds.api_hash,
+            groupId: selectedGroup.id,
+            participantsList: listToImport,
+            batchOffset: currentOffset,
+            batchSize: BATCH_SIZE
+          }
+        });
         
-        if (added > 0) toast.success(`${added} membros adicionados.`);
-        
-        if (errors.length > 0) {
-          setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
-          toast.error(`${errors.length} membros falharam.`);
-        } else {
-          setFailedMembers([]);
+        if (error) {
+          console.error("Erro no lote:", error);
+          toast.error(`Erro no lote (offset ${currentOffset}): ${error.message || 'desconhecido'}`);
+          break;
         }
-
-        setImportList("");
-        setParsedMembers([]);
-        setIsImportOpen(false);
-        fetchParticipants(selectedGroup.id);
+        
+        if (data?.results) {
+          allResults.push(...data.results);
+          const addedSoFar = allResults.filter((r: any) => r.status === 'added').length;
+          toast.info(`Progresso: ${data.processed}/${data.total} processados (${addedSoFar} adicionados)`);
+        }
+        
+        hasMore = data?.hasMore === true;
+        currentOffset = data?.nextOffset ?? currentOffset + BATCH_SIZE;
       }
+      
+      const added = allResults.filter((r: any) => r.status === 'added').length;
+      const errors = allResults.filter((r: any) => r.status === 'error');
+      
+      if (added > 0) toast.success(`${added} membros adicionados com sucesso.`);
+      
+      if (errors.length > 0) {
+        setFailedMembers(errors.map((e: any) => ({ user: e.user, error: e.error || "Erro desconhecido" })));
+        toast.error(`${errors.length} membros falharam.`);
+      } else {
+        setFailedMembers([]);
+      }
+
+      setImportList("");
+      setParsedMembers([]);
+      fetchParticipants(selectedGroup.id);
     } catch (err) {
       console.error("Erro ao importar membros:", err);
       toast.error("Falha na importação.");
