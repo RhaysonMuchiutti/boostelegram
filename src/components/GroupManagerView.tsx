@@ -638,7 +638,7 @@ export const GroupManagerView = () => {
                       variant="ghost" 
                       size="icon" 
                       className="h-5 w-5 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => setShouldStopImport(true)}
+                      onClick={handleStopImport}
                       title="Interromper importação"
                     >
                       <Trash2 className="w-3 h-3" />
