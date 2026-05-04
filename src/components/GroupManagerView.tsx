@@ -72,6 +72,7 @@ export const GroupManagerView = () => {
   const [parsedMembers, setParsedMembers] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [shouldStopImport, setShouldStopImport] = useState(false);
   const [reviewSearchTerm, setReviewSearchTerm] = useState("");
   const [selectedReviewMembers, setSelectedReviewMembers] = useState<string[]>([]);
   const [failedMembers, setFailedMembers] = useState<{user: string, error: string}[]>([]);
@@ -327,6 +328,7 @@ export const GroupManagerView = () => {
     if (!listToImport.trim() || !creds || !selectedGroup) return;
     
     setIsImporting(true);
+    setShouldStopImport(false);
     const allResults: any[] = [];
     let currentOffset = 0;
     let hasMore = true;
@@ -342,7 +344,21 @@ export const GroupManagerView = () => {
     try {
       toast.info(`Iniciando adição de ${totalToProcess} membros...`);
       
-      while (hasMore) {
+      let stopImport = false;
+      while (hasMore && !stopImport) {
+        // Read latest state using a promise/callback pattern to avoid stale closure issues in the loop
+        const checkStatus = () => new Promise<boolean>(resolve => {
+          setShouldStopImport(prev => {
+            resolve(prev);
+            return prev;
+          });
+        });
+        
+        stopImport = await checkStatus();
+        if (stopImport) break;
+
+
+
         const { data, error } = await supabase.functions.invoke("telegram-connector", {
           body: { 
             action: "add-members", 
@@ -562,11 +578,25 @@ export const GroupManagerView = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <RefreshCw className={cn("w-3.5 h-3.5 text-primary", isImporting && "animate-spin")} />
-                  {isImporting ? "Adicionando Membros..." : "Processamento Concluído"}
+                  {isImporting ? "Adicionando Membros..." : shouldStopImport ? "Processamento Interrompido" : "Processamento Concluído"}
                 </CardTitle>
-                <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                  {Math.round((importProgress.current / importProgress.total) * 100)}%
-                </span>
+                <div className="flex items-center gap-2">
+                  {isImporting && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-5 w-5 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setShouldStopImport(true)}
+                      title="Interromper importação"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                  <span className="text-[10px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                    {Math.round((importProgress.current / importProgress.total) * 100)}%
+                  </span>
+                </div>
+
               </div>
               <CardDescription className="text-[10px]">
                 {importProgress.current} de {importProgress.total} processados
