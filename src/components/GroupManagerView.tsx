@@ -724,7 +724,7 @@ export const GroupManagerView = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {failedMembers.length > 0 && (
-                    <Dialog>
+                    <Dialog open={isFailuresDialogOpen} onOpenChange={setIsFailuresDialogOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" className="gap-2 border-red-200 text-red-600 hover:bg-red-50">
                           <Info className="w-4 h-4" />
