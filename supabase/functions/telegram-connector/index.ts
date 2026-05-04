@@ -1010,6 +1010,7 @@ serve(async (req) => {
     }
 
     if (action === 'scrape-niche-groups') {
+      console.log(`[SCRAPE] Starting for user ${user.id} with keywords:`, body.keywords);
       const { nicheId, keywords } = body;
       const { data: conn } = await supabaseAdminClient
         .from('telegram_connections')
@@ -1020,23 +1021,30 @@ serve(async (req) => {
       if (!conn?.session_string) throw new Error('No session');
 
       const client = new TelegramClient(new StringSession(conn.session_string), parseInt(apiId), apiHash, {
-        connectionRetries: 1,
+        connectionRetries: 5,
+        requestRetries: 3,
+        timeout: 30000,
+        autoReconnect: true,
       });
 
       try {
+        console.log(`[SCRAPE] Connecting to Telegram...`);
         await client.connect();
+        console.log(`[SCRAPE] Connected successfully`);
         let foundCount = 0;
         
         // Telegram global search works best with single words or short phrases
         for (const keyword of keywords) {
           try {
+            console.log(`[SCRAPE] Searching for: ${keyword}`);
             // Using search with a reasonable limit per keyword
             const result = await client.invoke(new Api.contacts.Search({
               q: keyword,
-              limit: 20
+              limit: 50
             }));
 
             const chats = result.chats || [];
+            console.log(`[SCRAPE] Found ${chats.length} potential results for ${keyword}`);
             
             for (const chat of chats) {
               const entity = chat as any;
@@ -1045,34 +1053,40 @@ serve(async (req) => {
                 const memberCount = entity.participantsCount || 0;
                 
                 // Upsert into scraped_groups with advanced dedup logic
-                // We use telegram_id as the primary key for conflict, 
-                // but we also check if the username was updated to keep data fresh.
-                const { error: upsertError } = await supabaseAdminClient
-                  .from('scraped_groups')
-                  .upsert({
-                    niche_id: nicheId,
-                    title: entity.title,
-                    username: entity.username,
-                    description: entity.about || "",
-                    member_count: memberCount,
-                    type: entity.className === 'Channel' ? (entity.broadcast ? 'channel' : 'group') : 'group',
-                    telegram_id: entity.id.toString(),
-                    updated_at: new Date().toISOString()
-                  }, { 
-                    onConflict: 'telegram_id',
-                    ignoreDuplicates: false // Ensures we update existing rows if anything changed
-                  });
-                
-                if (!upsertError) foundCount++;
+                if (entity.username) {
+                  const memberCount = entity.participantsCount || 0;
+                  console.log(`[SCRAPE] Group found: @${entity.username} (${memberCount} members)`);
+                  
+                  const { error: upsertError } = await supabaseAdminClient
+                    .from('scraped_groups')
+                    .upsert({
+                      niche_id: nicheId,
+                      title: entity.title,
+                      username: entity.username,
+                      description: entity.about || "",
+                      member_count: memberCount,
+                      type: entity.className === 'Channel' ? (entity.broadcast ? 'channel' : 'group') : 'group',
+                      telegram_id: entity.id.toString(),
+                      updated_at: new Date().toISOString()
+                    }, { 
+                      onConflict: 'telegram_id',
+                      ignoreDuplicates: false
+                    });
+                  
+                  if (upsertError) {
+                    console.error(`[SCRAPE] Error upserting group @${entity.username}:`, upsertError);
+                  } else {
+                    foundCount++;
+                  }
+                }
               }
+            } catch (keywordError) {
+              console.error(`[SCRAPE] Error searching keyword "${keyword}":`, keywordError);
             }
-          } catch (keywordError) {
-            console.error(`Error searching keyword "${keyword}":`, keywordError);
-            // Continue with next keyword
           }
-        }
-
-        await client.disconnect();
+  
+          console.log(`[SCRAPE] Scraping finished. Total groups saved/updated: ${foundCount}`);
+          await client.disconnect();
         return new Response(JSON.stringify({ success: true, count: foundCount }), { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });

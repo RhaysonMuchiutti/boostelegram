@@ -131,18 +131,24 @@ export const NicheFinderView = () => {
         return;
       }
 
+      console.log("Iniciando busca para nicho:", niche.name, "Keywords:", niche.keywords);
+
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "scrape-niche-groups", 
-          apiId: creds.api_id, 
+          apiId: creds.api_id.toString(), 
           apiHash: creds.api_hash,
           nicheId: selectedNiche,
           keywords: niche.keywords
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erro na função de garimpo:", error);
+        throw error;
+      }
       
+      console.log("Resultado do garimpo:", data);
       toast.success(`${data?.count || 0} novos grupos encontrados e catalogados!`);
       fetchGroups(selectedNiche);
     } catch (error: any) {
