@@ -457,6 +457,10 @@ serve(async (req) => {
         
         console.log(`[ADD_MEMBERS] Cleaned list: ${JSON.stringify(usersToAdd)}`);
         
+        // Get group info first to confirm we have access
+        const groupEntity = await client.getEntity(groupId);
+        console.log(`[ADD_MEMBERS] Target group resolved: ${(groupEntity as any).title || groupEntity.id}`);
+
         for (let i = 0; i < usersToAdd.length; i++) {
           const userHandle = usersToAdd[i];
           console.log(`[ADD_MEMBERS] Processing user ${i+1}/${usersToAdd.length}: ${userHandle}`);
@@ -468,14 +472,19 @@ serve(async (req) => {
 
           while (attempts < maxAttempts && !added) {
             try {
+              console.log(`[ADD_MEMBERS] Resolving entity for: ${userHandle}...`);
               const entity = await client.getEntity(userHandle);
-              await client.invoke(new Api.channels.InviteToChannel({
-                channel: groupId,
+              console.log(`[ADD_MEMBERS] Entity resolved: ${entity.id} (username: ${(entity as any).username})`);
+              
+              const inviteResult = await client.invoke(new Api.channels.InviteToChannel({
+                channel: groupEntity,
                 users: [entity]
               }));
+              
+              console.log(`[ADD_MEMBERS] Invite result for ${userHandle}:`, JSON.stringify(inviteResult));
               results.push({ user: userHandle, status: 'added' });
               added = true;
-              console.log(`[ADD_MEMBERS] SUCCESS: ${userHandle} added to ${groupId}`);
+              console.log(`[ADD_MEMBERS] SUCCESS: ${userHandle} added to group`);
             } catch (e: any) {
               lastError = e.message;
               console.error(`[ADD_MEMBERS] ERROR on attempt ${attempts + 1} for ${userHandle}: ${e.message}`);
