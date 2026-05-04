@@ -207,14 +207,24 @@ export const GroupManagerView = () => {
 
   const parseMembers = (text: string) => {
     // Split by comma, newline or space and clean up
-    const members = text
+    const rawMembers = text
       .split(/[,\n\s]+/)
       .map(m => m.trim())
       .filter(m => m.length > 0);
     
-    // De-duplicate
-    const uniqueMembers = Array.from(new Set(members));
-    setParsedMembers(prev => Array.from(new Set([...prev, ...uniqueMembers])));
+    // Identify and filter out duplicates
+    const newUniqueMembers = rawMembers.filter(member => !parsedMembers.includes(member));
+    const duplicatesCount = rawMembers.length - newUniqueMembers.length;
+    
+    if (duplicatesCount > 0) {
+      toast.info(`${duplicatesCount} duplicados foram removidos automaticamente.`);
+    }
+
+    if (newUniqueMembers.length > 0) {
+      setParsedMembers(prev => [...prev, ...newUniqueMembers]);
+    } else if (rawMembers.length > 0 && duplicatesCount > 0) {
+      toast.error("Todos os membros informados já estão na lista de revisão.");
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
