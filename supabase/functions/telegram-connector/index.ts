@@ -479,24 +479,22 @@ serve(async (req) => {
         const dialogs = await client.getDialogs({ limit: 100 });
         
         const myGroups = dialogs
-          .filter(d => {
-            const isGrpOrChnl = d.isGroup || d.isChannel;
-            // A dialog is manageable if the user is the creator OR has admin rights
-            const isCreator = (d.entity as any)?.creator;
+          .filter(d => d.isGroup || d.isChannel)
+          .map(d => {
             const isAdmin = (d.entity as any)?.adminRights !== null && (d.entity as any)?.adminRights !== undefined;
+            const isCreator = (d.entity as any)?.creator || false;
             
-            return isGrpOrChnl && (isCreator || isAdmin);
-          })
-          .map(d => ({
-            id: d.id.toString(),
-            title: d.title,
-            participantsCount: (d.entity as any).participantsCount || 0,
-            isChannel: d.isChannel,
-            isAdmin: true,
-            isCreator: (d.entity as any)?.creator || false
-          }));
+            return {
+              id: d.id.toString(),
+              title: d.title,
+              participantsCount: (d.entity as any).participantsCount || 0,
+              isChannel: d.isChannel,
+              isAdmin: isAdmin || isCreator,
+              isCreator: isCreator
+            };
+          });
           
-        console.log(`Found ${myGroups.length} manageable groups/channels`);
+        console.log(`Found ${myGroups.length} groups/channels`);
           
         await client.disconnect();
         return new Response(JSON.stringify({ groups: myGroups }), { 
