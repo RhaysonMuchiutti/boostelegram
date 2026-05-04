@@ -411,6 +411,17 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       } catch (e: any) {
+        try { await client.disconnect(); } catch {}
+        if (e.message && (e.message.includes('CHAT_ADMIN_REQUIRED') || e.message.includes('CHANNEL_PRIVATE'))) {
+          return new Response(JSON.stringify({ 
+            participants: [], 
+            hasMore: false,
+            error: 'admin_required',
+            message: 'Este canal/grupo restringe a listagem de membros apenas para administradores.'
+          }), { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          });
+        }
         throw e;
       }
     }

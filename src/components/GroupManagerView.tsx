@@ -171,7 +171,23 @@ export const GroupManagerView = () => {
           limit: 100 // Smaller chunks for UI display
         }
       });
-      if (!error && data?.participants) {
+      if (error) {
+        const msg = (error as any)?.message || "";
+        if (msg.includes("CHAT_ADMIN_REQUIRED")) {
+          toast.error("Este grupo/canal só permite listar membros para administradores.");
+          setParticipants([]);
+          setHasMoreParticipants(false);
+          return;
+        }
+        throw error;
+      }
+      if (data?.error === 'admin_required') {
+        toast.error(data.message || "Sem permissão para listar membros deste grupo.");
+        setParticipants([]);
+        setHasMoreParticipants(false);
+        return;
+      }
+      if (data?.participants) {
         if (isLoadMore) {
           setParticipants(prev => [...prev, ...data.participants]);
           setParticipantsOffset(prev => prev + data.participants.length);
@@ -252,8 +268,18 @@ export const GroupManagerView = () => {
           }
         });
 
-        if (error || !data?.participants) {
-          throw new Error(error?.message || "Erro ao buscar dados de exportação");
+        if (error) {
+          const msg = (error as any)?.message || "";
+          if (msg.includes("CHAT_ADMIN_REQUIRED")) {
+            throw new Error("Este grupo/canal só permite exportar membros para administradores.");
+          }
+          throw new Error(msg || "Erro ao buscar dados de exportação");
+        }
+        if (data?.error === 'admin_required') {
+          throw new Error(data.message || "Sem permissão de administrador para listar membros.");
+        }
+        if (!data?.participants) {
+          throw new Error("Resposta inválida do servidor");
         }
 
         allParticipants = [...allParticipants, ...data.participants];
