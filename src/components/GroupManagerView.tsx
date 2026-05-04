@@ -65,6 +65,8 @@ export const GroupManagerView = () => {
   const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
+  const [hasMoreParticipants, setHasMoreParticipants] = useState(false);
+  const [participantsOffset, setParticipantsOffset] = useState(0);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importList, setImportList] = useState("");
   const [isImporting, setIsImporting] = useState(false);
@@ -72,6 +74,8 @@ export const GroupManagerView = () => {
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["id", "firstName", "username", "status"]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "pdf">("csv");
+  const [isExportingData, setIsExportingData] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const [groupLink, setGroupLink] = useState("");
   const [isResolvingGroup, setIsResolvingGroup] = useState(false);
 
@@ -152,20 +156,30 @@ export const GroupManagerView = () => {
     }
   };
 
-  const fetchParticipants = async (groupId: string) => {
+  const fetchParticipants = async (groupId: string, isLoadMore = false) => {
     if (!creds) return;
     setIsLoadingParticipants(true);
+    const offset = isLoadMore ? participantsOffset : 0;
     try {
       const { data, error } = await supabase.functions.invoke("telegram-connector", {
         body: { 
           action: "get-participants", 
           apiId: creds.api_id, 
           apiHash: creds.api_hash,
-          chatId: groupId 
+          chatId: groupId,
+          offset,
+          limit: 100 // Smaller chunks for UI display
         }
       });
       if (!error && data?.participants) {
-        setParticipants(data.participants);
+        if (isLoadMore) {
+          setParticipants(prev => [...prev, ...data.participants]);
+          setParticipantsOffset(prev => prev + data.participants.length);
+        } else {
+          setParticipants(data.participants);
+          setParticipantsOffset(data.participants.length);
+        }
+        setHasMoreParticipants(data.hasMore);
       }
     } catch (err) {
       console.error("Erro ao buscar participantes:", err);
@@ -205,61 +219,108 @@ export const GroupManagerView = () => {
     }
   };
 
-  const handleExport = () => {
-    if (participants.length === 0) {
-      toast.error("Não há participantes para exportar.");
-      return;
-    }
-
+  const handleExport = async () => {
+    if (!selectedGroup || !creds) return;
+    
     if (selectedColumns.length === 0) {
       toast.error("Selecione pelo menos uma coluna para exportar.");
       return;
     }
 
-    if (exportFormat === "csv") {
-      const headers = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label);
-      const csvContent = [
-        headers.join(","),
-        ...participants.map(p => selectedColumns.map(colId => {
+    setIsExportingData(true);
+    setExportProgress(0);
+    setIsExportDialogOpen(false);
+
+    try {
+      let allParticipants: any[] = [];
+      let currentOffset = 0;
+      let hasMore = true;
+      const batchSize = 500;
+      const totalEstimated = selectedGroup.participantsCount || 0;
+
+      toast.info("Iniciando exportação completa. Isso pode levar um momento para grupos grandes...");
+
+      while (hasMore) {
+        const { data, error } = await supabase.functions.invoke("telegram-connector", {
+          body: { 
+            action: "get-participants", 
+            apiId: creds.api_id, 
+            apiHash: creds.api_hash,
+            chatId: selectedGroup.id,
+            offset: currentOffset,
+            limit: batchSize
+          }
+        });
+
+        if (error || !data?.participants) {
+          throw new Error(error?.message || "Erro ao buscar dados de exportação");
+        }
+
+        allParticipants = [...allParticipants, ...data.participants];
+        currentOffset += data.participants.length;
+        hasMore = data.hasMore && allParticipants.length < 5000; // Safety cap at 5000 for now, or use totalEstimated
+
+        const progress = Math.min(Math.round((allParticipants.length / totalEstimated) * 100), 99);
+        setExportProgress(progress);
+        
+        if (allParticipants.length >= 5000 && data.hasMore) {
+          toast.warning("Limite de exportação de 5000 membros atingido por segurança.");
+          hasMore = false;
+        }
+      }
+
+      setExportProgress(100);
+
+      if (exportFormat === "csv") {
+        const headers = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label);
+        const csvContent = [
+          headers.join(","),
+          ...allParticipants.map(p => selectedColumns.map(colId => {
+            let value = p[colId] || "";
+            if (colId === "username" && value) value = `@${value}`;
+            if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
+            return `"${value}"`;
+          }).join(","))
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `participantes_${selectedGroup?.title || "grupo"}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        const doc = new jsPDF();
+        const tableColumn = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label || "");
+        const tableRows = allParticipants.map(p => selectedColumns.map(colId => {
           let value = p[colId] || "";
           if (colId === "username" && value) value = `@${value}`;
           if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
-          return `"${value}"`;
-        }).join(","))
-      ].join("\n");
+          return value;
+        }));
 
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", `participantes_${selectedGroup?.title || "grupo"}.csv`);
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      const doc = new jsPDF();
-      const tableColumn = selectedColumns.map(colId => exportColumns.find(c => c.id === colId)?.label || "");
-      const tableRows = participants.map(p => selectedColumns.map(colId => {
-        let value = p[colId] || "";
-        if (colId === "username" && value) value = `@${value}`;
-        if (colId === "joinedDate" && value) value = new Date(value).toLocaleDateString('pt-BR');
-        return value;
-      }));
+        doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: 20,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [14, 165, 233] }
+        });
+        doc.save(`participantes_${selectedGroup?.title || "grupo"}.pdf`);
+      }
 
-      doc.text(`Participantes - ${selectedGroup?.title || "Grupo"}`, 14, 15);
-      autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 20,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [14, 165, 233] }
-      });
-      doc.save(`participantes_${selectedGroup?.title || "grupo"}.pdf`);
+      toast.success(`${exportFormat.toUpperCase()} exportado com sucesso (${allParticipants.length} membros)!`);
+    } catch (err: any) {
+      console.error("Erro na exportação:", err);
+      toast.error(`Erro ao exportar: ${err.message}`);
+    } finally {
+      setIsExportingData(false);
+      setExportProgress(0);
     }
-
-    setIsExportDialogOpen(false);
-    toast.success(`${exportFormat.toUpperCase()} exportado com sucesso!`);
   };
 
   const toggleColumn = (columnId: string) => {
@@ -495,17 +556,47 @@ export const GroupManagerView = () => {
                             </div>
                             <DialogFooter>
                               <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancelar</Button>
-                              <Button onClick={handleExport}>
-                                Confirmar e Exportar
+                              <Button onClick={handleExport} disabled={isExportingData}>
+                                {isExportingData ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                                    Exportando ({exportProgress}%)
+                                  </>
+                                ) : (
+                                  "Confirmar e Exportar"
+                                )}
                               </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
 
+                        {isExportingData && (
+                          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center">
+                            <div className="bg-white p-8 rounded-2xl shadow-2xl border border-slate-100 max-w-sm w-full text-center space-y-4">
+                              <RefreshCw className="w-10 h-10 text-primary animate-spin mx-auto" />
+                              <h3 className="text-xl font-bold">Exportando Dados</h3>
+                              <p className="text-muted-foreground text-sm">
+                                Buscando todos os participantes do Telegram. Por favor, aguarde...
+                              </p>
+                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-primary h-full transition-all duration-300" 
+                                  style={{ width: `${exportProgress}%` }}
+                                ></div>
+                              </div>
+                              <p className="text-xs font-mono text-primary">{exportProgress}% concluído</p>
+                            </div>
+                          </div>
+                        )}
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <FileDown className="w-3 h-3" />
+                            <Button variant="outline" size="sm" className="gap-2" disabled={isExportingData}>
+                              {isExportingData ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <FileDown className="w-3 h-3" />
+                              )}
                               Exportar
                             </Button>
                           </DropdownMenuTrigger>
@@ -520,7 +611,7 @@ export const GroupManagerView = () => {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => fetchParticipants(selectedGroup.id)} disabled={isLoadingParticipants}>
                           <RefreshCw className={cn("w-3 h-3 mr-2", isLoadingParticipants && "animate-spin")} />
                           Atualizar
                         </Button>
@@ -528,17 +619,7 @@ export const GroupManagerView = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      {isLoadingParticipants ? (
-                        Array.from({ length: 8 }).map((_, i) => (
-                          <div key={i} className="flex items-center gap-3 p-3 border border-slate-50 rounded-lg animate-pulse">
-                            <div className="w-10 h-10 rounded-full bg-slate-100"></div>
-                            <div className="flex-1 space-y-2">
-                              <div className="h-4 bg-slate-100 rounded w-1/3"></div>
-                              <div className="h-3 bg-slate-50 rounded w-1/4"></div>
-                            </div>
-                          </div>
-                        ))
-                      ) : participants.length > 0 ? (
+                      {participants.length > 0 && (
                         participants.map((p) => (
                           <div key={p.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors border border-transparent hover:border-slate-100 group">
                             <div className="flex items-center gap-3">
@@ -572,7 +653,32 @@ export const GroupManagerView = () => {
                             </Button>
                           </div>
                         ))
-                      ) : (
+                      )}
+
+                      {isLoadingParticipants && (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3 p-3 border border-slate-50 rounded-lg animate-pulse">
+                            <div className="w-10 h-10 rounded-full bg-slate-100"></div>
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 bg-slate-100 rounded w-1/3"></div>
+                              <div className="h-3 bg-slate-50 rounded w-1/4"></div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      {hasMoreParticipants && !isLoadingParticipants && (
+                        <Button 
+                          variant="ghost" 
+                          className="w-full py-6 text-primary hover:bg-primary/5 gap-2"
+                          onClick={() => fetchParticipants(selectedGroup.id, true)}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Carregar mais participantes
+                        </Button>
+                      )}
+
+                      {!isLoadingParticipants && participants.length === 0 && (
                         <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                           <Info className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                           <p className="text-slate-500 font-medium">Nenhum participante encontrado ou sem permissão para listar.</p>
