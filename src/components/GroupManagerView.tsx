@@ -443,6 +443,8 @@ export const GroupManagerView = () => {
       }
       
       setActiveImportId(null); // Clear active import tracking on finish
+      setImportResults(allResults); // Save results for report generation
+
 
       
       const added = allResults.filter((r: any) => r.status === 'added').length;
