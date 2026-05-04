@@ -109,17 +109,45 @@ export const NicheFinderView = () => {
     toast.info("Iniciando garimpo de grupos por nicho...");
 
     try {
-      // Simulação de delay para futura Edge Function
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(resolve, 3000);
-        // Possibilidade de reject se quisermos testar erro
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data: creds } = await supabase
+        .from("telegram_credentials")
+        .select("api_id, api_hash")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!creds) {
+        toast.error("Vincule sua conta Telegram nas configurações antes de garimpar.");
+        setIsSearching(false);
+        return;
+      }
+
+      const niche = categories.find(c => c.id === selectedNiche);
+      if (!niche || !niche.keywords?.length) {
+        toast.error("O nicho selecionado não possui palavras-chave.");
+        setIsSearching(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("telegram-connector", {
+        body: { 
+          action: "scrape-niche-groups", 
+          apiId: creds.api_id, 
+          apiHash: creds.api_hash,
+          nicheId: selectedNiche,
+          keywords: niche.keywords
+        }
       });
       
-      toast.success("Novos grupos encontrados e catalogados!");
+      if (error) throw error;
+      
+      toast.success(`${data?.count || 0} novos grupos encontrados e catalogados!`);
       fetchGroups(selectedNiche);
     } catch (error: any) {
       console.error("Erro ao garimpar:", error);
-      toast.error("Erro ao garimpar grupos. Verifique sua conexão com o Telegram.");
+      toast.error(error.message || "Erro ao garimpar grupos. Verifique sua conexão com o Telegram.");
     } finally {
       setIsSearching(false);
     }
