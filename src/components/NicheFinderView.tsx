@@ -31,19 +31,32 @@ export const NicheFinderView = () => {
   const [isAddingNiche, setIsAddingNiche] = useState(false);
 
   const fetchCategories = async () => {
-    const { data } = await supabase
-      .from("niche_categories")
-      .select("*")
-      .order("name");
-    setCategories(data || []);
+    try {
+      const { data, error } = await supabase
+        .from("niche_categories")
+        .select("*")
+        .order("name");
+      
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (err: any) {
+      console.error("Erro ao buscar nichos:", err);
+      toast.error("Não foi possível carregar as categorias de nicho.");
+    }
   };
 
   const fetchGroups = async (nicheId: string | null) => {
-    let query = supabase.from("scraped_groups").select("*");
-    if (nicheId) query = query.eq("niche_id", nicheId);
-    
-    const { data } = await query.order("member_count", { ascending: false });
-    setGroups(data || []);
+    try {
+      let query = supabase.from("scraped_groups").select("*");
+      if (nicheId) query = query.eq("niche_id", nicheId);
+      
+      const { data, error } = await query.order("member_count", { ascending: false });
+      if (error) throw error;
+      setGroups(data || []);
+    } catch (err: any) {
+      console.error("Erro ao buscar grupos:", err);
+      toast.error("Erro ao sincronizar grupos garimpados.");
+    }
   };
 
   useEffect(() => {
