@@ -166,6 +166,13 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
               onClick={() => setActiveTab("automation")}
             />
             <SidebarItem 
+              icon={Compass} 
+              label="Garimpar Grupos" 
+              active={activeTab === "niche-finder"}
+              collapsed={isCollapsed}
+              onClick={() => setActiveTab("niche-finder")}
+            />
+            <SidebarItem 
               icon={List} 
               label="Gerenciar Grupos" 
               active={activeTab === "group-manager"}
@@ -219,7 +226,6 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        {/* We can reuse the sidebar content here or just copy it, for simplicity I'll keep it separate or use a component */}
         <div className="flex flex-col h-full px-4 py-6">
           <div className="flex items-center gap-3 px-2 mb-8">
             <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
@@ -234,6 +240,7 @@ export const AdminLayout = ({ children, activeTab, setActiveTab }: AdminLayoutPr
             <SidebarItem icon={Target} label="Campanhas" active={activeTab === "campaigns"} onClick={() => { setActiveTab("campaigns"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={Users} label="Leads" active={activeTab === "leads"} onClick={() => { setActiveTab("leads"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={MessageSquare} label="Mensagens" active={activeTab === "messages"} onClick={() => { setActiveTab("messages"); setIsSidebarOpen(false); }} />
+            <SidebarItem icon={Compass} label="Garimpar Grupos" active={activeTab === "niche-finder"} onClick={() => { setActiveTab("niche-finder"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={List} label="Gerenciar Grupos" active={activeTab === "group-manager"} onClick={() => { setActiveTab("group-manager"); setIsSidebarOpen(false); }} />
             <SidebarItem icon={Settings} label="Configurações" active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }} />
           </nav>
